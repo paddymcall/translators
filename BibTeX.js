@@ -1262,10 +1262,12 @@ function doExport() {
 			writeField("howpublished", item.url);
 		}*/
 		if (item.notes && Zotero.getOption("exportNotes")) {
-			for(var i in item.notes) {
-				var note = item.notes[i];
-				writeField("annote", Zotero.Utilities.unescapeHTML(note["note"]));
+		    for(var i in item.notes) {
+			var note = item.notes[i];
+			if (note != null) {
+			    writeField("annote", Zotero.Utilities.unescapeHTML(note["note"]));
 			}
+		    }
 		}		
 		
 		if(item.attachments) {
