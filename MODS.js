@@ -124,7 +124,7 @@ var fromMarcGenre = {
 	"art original":"artwork",
 	"web site":"webpage",
 	"yearbook":"book",
-        "canonical scripture": "bookSection"
+        "canonical scripture": "book"
 };
 
 var toMarcGenre = {
@@ -966,12 +966,12 @@ function doImport() {
 		var modsElement = modsElements[iModsElements],
 			newItem = new Zotero.Item();
 	       var genreElement = ZU.xpath(modsElement, "./m:genre", xns);
+	       var genre = 'journalArticle';
 		if (genreElement.length) {
-		    var genre = genreElement[0].textContent;
-		}{
-		    var genre = 'journalArticle';
-		    }
-		Zotero.debug("The genre is: " + genre);
+		    Zotero.debug("Found a genre: " + genreElement[0].textContent);
+		    genre = genreElement[0].textContent;
+		}
+		Zotero.debug("The genre is now: " + genre);
 		// title
 		newItem.title = processTitle(modsElement);
 		
@@ -1002,29 +1002,54 @@ function doImport() {
 		var part = [], originInfo = [];
 		
 		// host
-		var hostNodes = ZU.xpath(modsElement, 'm:relatedItem[@type="host"]', xns)
+		var hostNodes = ZU.xpath(modsElement, './m:relatedItem[@type="host"]', xns)
 	        Zotero.debug("hosts found: " + hostNodes.length);
 		for(var i=0; i<hostNodes.length; i++) {
 			var host = hostNodes[i];
-			// publicationTitle
-			if(!newItem.publicationTitle) newItem.publicationTitle = processTitle(host);
-			
-			// journalAbbreviation
-			if(!newItem.journalAbbreviation) {
+		        if (genre === "canonical scripture") {
+			    Zotero.debug("Canonical scripture!");
+			    var eastCanonVolume = ZU.xpathText(host, 'm:part/m:detail/m:number', xns);
+			    var eastCanonExtentStart = ZU.xpathText(host, 'm:part/m:extent/m:start', xns);
+			    var eastCanonExtentEnd = ZU.xpathText(host, 'm:part/m:extent/m:end', xns);
+			    var eastCanonTitle = ZU.xpathText(host, 'm:titleInfo/m:title', xns);
+			    var eastCanonSubTitle = ZU.xpathText(host, 'm:titleInfo/m:subTitle', xns);
+			    var eastCanonRef = eastCanonTitle;
+
+			    if (eastCanonSubTitle) {
+			    	eastCanonRef = eastCanonRef + " (" + eastCanonSubTitle + ")";
+			    }
+
+			    eastCanonRef = eastCanonRef + " " + eastCanonVolume + ", " + eastCanonExtentStart + "–" + eastCanonExtentEnd;
+			    Zotero.debug("Canon reference: " + eastCanonRef);
+			    // put the canonTitle into the series or seriesTitle field
+			    if(ZU.fieldIsValidForType('series', newItem.itemType)) {
+				newItem.series = newItem.series ? newItem.series + "; " + eastCanonRef : eastCanonRef;
+			    } else if(ZU.fieldIsValidForType('seriesTitle', newItem.itemType)) {
+				newItem.seriesTitle = newItem.seriesTitle ? newItem.seriesTitle + "; " + eastCanonRef : eastCanonRef;
+			    }
+
+			} else { // the standard behaviour goes here
+			    // publicationTitle
+			    if(!newItem.publicationTitle) newItem.publicationTitle = processTitle(host);
+			    Zotero.debug("publicationTitle: " + newItem.publicationTitle);
+			    // journalAbbreviation
+			    if(!newItem.journalAbbreviation) {
 				var titleInfo = ZU.xpath(host, 'm:titleInfo[@type="abbreviated"]', xns);
 				if(titleInfo.length) {
-					newItem.journalAbbreviation = processTitleInfo(titleInfo[0]);
+				    newItem.journalAbbreviation = processTitleInfo(titleInfo[0]);
 				}
+			    }
+			    
+			    // creators (might be editors)
+			    processCreators(host, newItem, "editor");
+			    
+			    // identifiers
+			    processIdentifiers(host, newItem);
+			    
+			    part = part.concat(ZU.xpath(host, 'm:part', xns));
+			    Zotero.debug("Setting part: " + part);
+			    originInfo = originInfo.concat(ZU.xpath(host, 'm:originInfo', xns));
 			}
-			
-			// creators (might be editors)
-			processCreators(host, newItem, "editor");
-			
-			// identifiers
-			processIdentifiers(host, newItem);
-			
-			part = part.concat(ZU.xpath(host, 'm:part', xns));
-			originInfo = originInfo.concat(ZU.xpath(host, 'm:originInfo', xns));
 		}
 		
 		if(!newItem.publicationTitle) newItem.publicationTitle = newItem.journalAbbreviation;		
