@@ -123,7 +123,8 @@ var fromMarcGenre = {
 	"motion picture":"film",
 	"art original":"artwork",
 	"web site":"webpage",
-	"yearbook":"book"
+	"yearbook":"book",
+        "canonical scripture": "bookSection"
 };
 
 var toMarcGenre = {
@@ -646,6 +647,7 @@ function processTitle(contextElement) {
 }
 
 function processGenre(contextElement) {
+
 	// Try to get itemType by treating local genre as Zotero item type
 	var genre = ZU.xpath(contextElement, 'm:genre[@authority="local"]', xns);
 	for(var i=0; i<genre.length; i++) {
@@ -669,15 +671,16 @@ function processGenre(contextElement) {
 	
 	// Try unlabeled genres
 	genre = ZU.xpath(contextElement, 'm:genre', xns);
+
 	for(var i=0; i<genre.length; i++) {
 		var genreStr = genre[i].textContent;
-		
+
 		// Zotero
 		if(Zotero.Utilities.itemTypeExists(genreStr)) return genreStr;
-		
+	    Zotero.debug("Processing genre: " + genreStr + " to Marc: " + fromMarcGenre[genreStr]);		
 		// MARC
 		if(fromMarcGenre[genreStr]) return fromMarcGenre[genreStr];
-		
+		    
 		// DCT
 		var dctGenreStr = genreStr.replace(/\s+/g, "");
 		if(dctGenres[dctGenreStr]) return dctGenres[dctGenreStr];
@@ -962,7 +965,13 @@ function doImport() {
 			iModsElements<nModsElements; iModsElements++) {
 		var modsElement = modsElements[iModsElements],
 			newItem = new Zotero.Item();
-		
+	       var genreElement = ZU.xpath(modsElement, "./m:genre", xns);
+		if (genreElement.length) {
+		    var genre = genreElement[0].textContent;
+		}{
+		    var genre = 'journalArticle';
+		    }
+		Zotero.debug("The genre is: " + genre);
 		// title
 		newItem.title = processTitle(modsElement);
 		
@@ -994,9 +1003,9 @@ function doImport() {
 		
 		// host
 		var hostNodes = ZU.xpath(modsElement, 'm:relatedItem[@type="host"]', xns)
+	        Zotero.debug("hosts found: " + hostNodes.length);
 		for(var i=0; i<hostNodes.length; i++) {
 			var host = hostNodes[i];
-			
 			// publicationTitle
 			if(!newItem.publicationTitle) newItem.publicationTitle = processTitle(host);
 			
@@ -1053,7 +1062,7 @@ function doImport() {
 			var details = ["volume", "issue", "section"];
 			for(var i=0; i<details.length; i++) {
 				var detail = details[i];
-				
+				Zotero.debug("Processing details for: " + detail);
 				newItem[detail] = getFirstResult(part, ['m:detail[@type="'+detail+'"]/m:number',
 					'm:detail[@type="'+detail+'"]']);
 			}
@@ -1169,6 +1178,8 @@ function doImport() {
 				(note.hasAttribute("type") ? note.getAttribute("type") + ': ':'') +
 				note.textContent
 			});
+		    // to keep the notes in the actual item (as extra):
+		    newItem.extra = ZU.xpathText(modsElement, 'm:note', xns, "\n\n");
 		}
 
 		// ToC - goes into notes
