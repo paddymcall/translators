@@ -798,7 +798,7 @@ function processCreator(name, itemType, defaultCreatorType) {
 }
 
 function processCreators(contextElement, newItem, defaultCreatorType) {
-	var names = ZU.xpath(contextElement, 'm:name', xns);
+	var names = ZU.xpath(contextElement, 'm:name[not(ancestor::m:relatedItem)]', xns);
 	for(var i=0; i<names.length; i++) {
 		var creator = processCreator(names[i], newItem.itemType, defaultCreatorType);
 		if(creator) newItem.creators.push(creator);
