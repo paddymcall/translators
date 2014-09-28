@@ -624,26 +624,36 @@ function doExport() {
 }
 
 function processTitleInfo(titleInfo) {
-	var title = ZU.xpathText(titleInfo, "m:title[1]", xns).trim();
-	var subtitle = ZU.xpathText(titleInfo, "m:subTitle[1]", xns);
-	if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
-	var nonSort = ZU.xpathText(titleInfo, "m:nonSort[1]", xns);
-	if(nonSort) title = nonSort.trim() + " " + title;
-	return title;
+        var completeTitle = '';
+        var title = '';
+        var subtitle = '';
+        var nonSort = '';
+        var i=0;
+        while (i < titleInfo.length) {
+	    title = ZU.xpathText(titleInfo[i], "m:title[1]", xns).trim();
+	    subtitle = ZU.xpathText(titleInfo, "m:subTitle[1]", xns);
+	    if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
+	    nonSort = ZU.xpathText(titleInfo, "m:nonSort[1]", xns);
+	    if(nonSort) title = nonSort.trim() + " " + title;
+	    if(i > 0) title = " (" + title + ") ";
+	    completeTitle += title;
+	    i++;
+	    }
+	return completeTitle;
 }
 
 function processTitle(contextElement) {
 	// Try to find a titleInfo element with no type specified and a title element as a
 	// child
-	var titleElements = ZU.xpath(contextElement, "m:titleInfo[not(@type)][m:title][1]", xns);
-	if(titleElements.length) return processTitleInfo(titleElements[0]);
+	var titleElements = ZU.xpath(contextElement, "./m:titleInfo[not(@type) or @type='translated' or @type='alternative'][m:title]", xns);
+	if(titleElements.length) return processTitleInfo(titleElements);
 	
 	// That failed, so look for any titleInfo element without no type secified
-	var title = ZU.xpathText(contextElement, "m:titleInfo[not(@type)][1]", xns);
+	var title = ZU.xpathText(contextElement, "./m:titleInfo[not(@type)][1]", xns);
 	if(title) return title;
 	
 	// That failed, so just go for the first title
-	return ZU.xpathText(contextElement, "m:titleInfo[1]", xns);
+	return ZU.xpathText(contextElement, "./m:titleInfo[1]", xns);
 }
 
 function processGenre(contextElement) {
