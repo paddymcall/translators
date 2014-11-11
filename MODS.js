@@ -637,7 +637,7 @@ function processTitleInfo(titleInfo) {
 	    if(nonSort) title = nonSort.trim() + " " + title;
 	    if(i == 1) title = " (" + title;
 	    if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
-	    if(i == titleInfo.length - 1) title = title.trim() + ") ";
+	    if(i >= 1 && i == titleInfo.length - 1) title = title.trim() + ") ";
 	    completeTitle += title;
 	    i++;
 	    }
