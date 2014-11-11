@@ -635,11 +635,14 @@ function processTitleInfo(titleInfo) {
 	    if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
 	    nonSort = ZU.xpathText(titleInfo, "m:nonSort[1]", xns);
 	    if(nonSort) title = nonSort.trim() + " " + title;
-	    if(i > 0) title = " (" + title + ") ";
+	    if(i == 1) title = " (" + title;
+	    if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
 	    completeTitle += title;
 	    i++;
+	    Zotero.debug("Title is: " + completeTitle);
 	    }
-	return completeTitle;
+        if(i > 0) completeTitle = completeTitle.trim() + ")";
+	return completeTitle.trim();
 }
 
 function processTitle(contextElement) {
@@ -647,7 +650,7 @@ function processTitle(contextElement) {
 	// child
 	var titleElements = ZU.xpath(contextElement, "./m:titleInfo[not(@type) or @type='translated' or @type='alternative'][m:title]", xns);
 	if(titleElements.length) return processTitleInfo(titleElements);
-	
+
 	// That failed, so look for any titleInfo element without no type secified
 	var title = ZU.xpathText(contextElement, "./m:titleInfo[not(@type)][1]", xns);
 	if(title) return title;
