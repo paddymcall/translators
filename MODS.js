@@ -637,11 +637,10 @@ function processTitleInfo(titleInfo) {
 	    if(nonSort) title = nonSort.trim() + " " + title;
 	    if(i == 1) title = " (" + title;
 	    if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
+	    if(i == titleInfo.length - 1) title = title.trim() + ") ";
 	    completeTitle += title;
 	    i++;
-	    Zotero.debug("Title is: " + completeTitle);
 	    }
-        if(i > 0) completeTitle = completeTitle.trim() + ")";
 	return completeTitle.trim();
 }
 
