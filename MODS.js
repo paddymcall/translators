@@ -1020,7 +1020,10 @@ function doImport() {
 			var host = hostNodes[i];
 		        if (genre === "canonical scripture") {
 			    Zotero.debug("Canonical scripture!");
-			    var eastCanonVolume = ZU.xpathText(host, 'm:part/m:detail/m:number', xns);
+			    var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
+			    Zotero.debug("Part: " + eastCanonNumber);
+			    var eastCanonVolume = ZU.xpathText(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
+			    // var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
 			    var eastCanonExtentStart = ZU.xpathText(host, 'm:part/m:extent/m:start', xns);
 			    var eastCanonExtentEnd = ZU.xpathText(host, 'm:part/m:extent/m:end', xns);
 			    var eastCanonAbbrevTitle = ZU.xpathText(host, 'm:titleInfo[@type="abbreviated"]/m:title', xns);
@@ -1028,6 +1031,8 @@ function doImport() {
 			    var eastCanonSubTitle = ZU.xpathText(host, 'm:titleInfo/m:subTitle', xns);
 			    var eastCanonRef = "";
 			    
+			    Zotero.debug(eastCanonNumber);
+
 			    if (eastCanonAbbrevTitle && eastCanonAbbrevTitle.length) {
 				eastCanonRef = eastCanonAbbrevTitle;
 			    } else {
@@ -1036,11 +1041,15 @@ function doImport() {
 			    	    eastCanonRef = eastCanonRef + " (" + eastCanonSubTitle + ")";
 				}
 			    }
+			    
+			    if (eastCanonNumber && eastCanonNumber.length) {
+				eastCanonRef = eastCanonRef.trim() + " " + eastCanonNumber;
+			    }
 
-			    if (eastCanonVolume.length) {
+			    if (eastCanonVolume && eastCanonVolume.length) {
 				eastCanonRef = eastCanonRef + " " + eastCanonVolume;
 			    }
-			    if (eastCanonExtentStart.length) {
+			    if (eastCanonExtentStart && eastCanonExtentStart.length) {
 				eastCanonRef = eastCanonRef + ", " + eastCanonExtentStart + "–" + eastCanonExtentEnd;
 			    } else {
 				eastCanonRef = eastCanonRef + ".";
