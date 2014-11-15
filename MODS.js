@@ -1027,7 +1027,10 @@ function doImport() {
 			    var eastCanonExtentStart = ZU.xpathText(host, 'm:part/m:extent/m:start', xns);
 			    var eastCanonExtentEnd = ZU.xpathText(host, 'm:part/m:extent/m:end', xns);
 			    var eastCanonAbbrevTitle = ZU.xpathText(host, 'm:titleInfo[@type="abbreviated"]/m:title', xns);
-			    var eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo/m:title', xns);
+			    var eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo[not(@type)]/m:title', xns);
+			    if (!eastCanonFullTitle || !eastCanonFullTitle.length) {
+				eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo/m:title', xns);
+			    }
 			    var eastCanonSubTitle = ZU.xpathText(host, 'm:titleInfo/m:subTitle', xns);
 			    var eastCanonRef = "";
 			    
@@ -1051,8 +1054,6 @@ function doImport() {
 			    }
 			    if (eastCanonExtentStart && eastCanonExtentStart.length) {
 				eastCanonRef = eastCanonRef + ", " + eastCanonExtentStart + "–" + eastCanonExtentEnd;
-			    } else {
-				eastCanonRef = eastCanonRef + ".";
 			    }
 			    Zotero.debug("Canon reference: " + eastCanonRef);
 			    // put the canonTitle into the series or seriesTitle field
