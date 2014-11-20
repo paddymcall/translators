@@ -124,7 +124,7 @@ var fromMarcGenre = {
 	"art original":"artwork",
 	"web site":"webpage",
 	"yearbook":"book",
-        "canonical scripture": "book"
+        "canonical scripture": "manuscript"
 };
 
 var toMarcGenre = {
@@ -150,7 +150,7 @@ var toMarcGenre = {
 	"letter":"letter",
 	"magazineArticle":"periodical",
 	//"manuscript":XXX,
-	"map":"map",
+  	"map":"map",
 	"newspaperArticle":"newspaper",
 	"patent":"patent",
 	"podcast":"speech",
@@ -1053,7 +1053,7 @@ function doImport() {
 				eastCanonRef = eastCanonRef + " " + eastCanonVolume;
 			    }
 			    if (eastCanonExtentStart && eastCanonExtentStart.length) {
-				eastCanonRef = eastCanonRef + ", " + eastCanonExtentStart + "–" + eastCanonExtentEnd;
+				eastCanonRef = eastCanonRef + " " + eastCanonExtentStart + "–" + eastCanonExtentEnd;
 			    }
 			    Zotero.debug("Canon reference: " + eastCanonRef);
 			    // put the canonTitle into the series or seriesTitle field
