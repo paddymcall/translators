@@ -1021,21 +1021,30 @@ function doImport() {
 		        if (genre === "canonical scripture") {
 			    Zotero.debug("Canonical scripture!");
 			    var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
-			    Zotero.debug("Part: " + eastCanonNumber);
+			    Zotero.debug("EAST Canon number (=part): " + eastCanonNumber);
+			    var eastCanonVolumeNodes = ZU.xpath(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
+			    Zotero.debug("EAST Canon volume nodes: found " + eastCanonVolumeNodes.length);
 			    var eastCanonVolume = ZU.xpathText(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
+			    Zotero.debug("EAST Canon volume: " + eastCanonVolume);
 			    // var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
 			    var eastCanonExtentStart = ZU.xpathText(host, 'm:part/m:extent/m:start', xns);
+			    Zotero.debug("EAST Canon extent start: " + eastCanonExtentStart);
 			    var eastCanonExtentEnd = ZU.xpathText(host, 'm:part/m:extent/m:end', xns);
+			    Zotero.debug("EAST Canon extent end: " + eastCanonExtentEnd);
 			    var eastCanonAbbrevTitle = ZU.xpathText(host, 'm:titleInfo[@type="abbreviated"]/m:title', xns);
+			    Zotero.debug("EAST Canon abbrev title: " + eastCanonAbbrevTitle);
 			    var eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo[not(@type)]/m:title', xns);
+			    Zotero.debug("EAST Canon full title: " + eastCanonFullTitle);
 			    if (!eastCanonFullTitle || !eastCanonFullTitle.length) {
 				eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo/m:title', xns);
 			    }
 			    var eastCanonSubTitle = ZU.xpathText(host, 'm:titleInfo/m:subTitle', xns);
+			    Zotero.debug("EAST Canon Subtitle: " + eastCanonSubTitle);
 			    var eastCanonRef = "";
 			    
-			    Zotero.debug(eastCanonNumber);
 
+
+			    
 			    if (eastCanonAbbrevTitle && eastCanonAbbrevTitle.length) {
 				eastCanonRef = eastCanonAbbrevTitle;
 			    } else {
@@ -1048,13 +1057,24 @@ function doImport() {
 			    if (eastCanonNumber && eastCanonNumber.length) {
 				eastCanonRef = eastCanonRef.trim() + " " + eastCanonNumber;
 			    }
+			    eastCanonRef = eastCanonRef + " ";
+			    // check if we have more than one canon volume node (meaning this item stretches across volumes)
+			    for(var otherI=0; otherI<eastCanonVolumeNodes.length; otherI++) {
+				// append the volume
+				if (eastCanonVolume && eastCanonVolume.length) {
+				    eastCanonRef = eastCanonRef + eastCanonVolumeNodes[otherI].textContent;
+				}
+				// append the start and the en dash
+				if (otherI == 0) {
+				if (eastCanonExtentStart && eastCanonExtentStart.length) {
+				    eastCanonRef = eastCanonRef + " " + eastCanonExtentStart + "–";
+				}}
+				else {
+				    eastCanonRef = eastCanonRef + " ";
+				}
+			    }
+			    eastCanonRef = eastCanonRef + eastCanonExtentEnd;
 
-			    if (eastCanonVolume && eastCanonVolume.length) {
-				eastCanonRef = eastCanonRef + " " + eastCanonVolume;
-			    }
-			    if (eastCanonExtentStart && eastCanonExtentStart.length) {
-				eastCanonRef = eastCanonRef + " " + eastCanonExtentStart + "–" + eastCanonExtentEnd;
-			    }
 			    Zotero.debug("Canon reference: " + eastCanonRef);
 			    // put the canonTitle into the series or seriesTitle field
 			    if(ZU.fieldIsValidForType('series', newItem.itemType)) {
