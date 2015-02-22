@@ -625,31 +625,52 @@ function doExport() {
 }
 
 function processTitleInfo(titleInfo) {
-        var completeTitle = '';
-        var title = '';
-        var subtitle = '';
-        var nonSort = '';
-        var i=0;
-        while (i < titleInfo.length) {
-	    title = ZU.xpathText(titleInfo[i], "m:title[1]", xns).trim();
-	    subtitle = ZU.xpathText(titleInfo, "m:subTitle[1]", xns);
-	    if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
-	    nonSort = ZU.xpathText(titleInfo, "m:nonSort[1]", xns);
-	    if(nonSort) title = nonSort.trim() + " " + title;
-	    if(i == 1) title = " (" + title;
-	    if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
-	    if(i >= 1 && i == titleInfo.length - 1) title = title.trim() + ") ";
-	    completeTitle += title;
-	    i++;
-	    }
-	return completeTitle.trim();
+    var completeTitle = '';
+    var title = '';
+    var subtitle = '';
+    var nonSort = '';
+    var i=0;
+    while (i < titleInfo.length) {
+	title = ZU.xpathText(titleInfo[i], "m:title[1]", xns).trim();
+	subtitle = ZU.xpathText(titleInfo, "m:subTitle[1]", xns);
+	if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
+	nonSort = ZU.xpathText(titleInfo, "m:nonSort[1]", xns);
+	if(nonSort) title = nonSort.trim() + " " + title;
+	if(i == 1) title = " (" + title;
+	if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
+	if(i >= 1 && i == titleInfo.length - 1) title = title.trim() + ") ";
+	completeTitle += title;
+	i++;
+    }
+    return completeTitle.trim();
 }
 
 function processTitle(contextElement) {
 	// Try to find a titleInfo element with no type specified and a title element as a
 	// child
-	var titleElements = ZU.xpath(contextElement, "./m:titleInfo[not(@type) or @type='translated' or @type='alternative'][m:title]", xns);
-	if(titleElements.length) return processTitleInfo(titleElements);
+    var titleElements = ZU.xpath(contextElement, "./m:titleInfo[not(@type)][m:title]", xns);
+    var trlTitleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='translated'][m:title]", xns);
+    var altTitleElements = ZU.xpath(contextElement, "./m:titleInfo[ @type='alternative'][m:title]", xns);
+    var completeTitle = "";
+    if(titleElements.length) {
+	completeTitle = processTitleInfo(titleElements);
+    };
+    if(trlTitleElements.length) {
+	if (completeTitle.length > 0) {
+	    completeTitle = completeTitle + " ["
+	};
+	completeTitle = completeTitle + processTitleInfo(trlTitleElements);
+	if (completeTitle.length > 0) {
+	    completeTitle = completeTitle + "]"
+	};
+    };
+    if(altTitleElements.length) {
+	if (completeTitle.length > 0) {
+	    completeTitle = completeTitle + " / "
+	};
+	completeTitle = completeTitel + processTitleInfo(altTitleElements);
+    };
+    if (completeTitle.length > 0) return completeTitle;
 
 	// That failed, so look for any titleInfo element without no type secified
 	var title = ZU.xpathText(contextElement, "./m:titleInfo[not(@type)][1]", xns);
