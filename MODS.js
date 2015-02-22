@@ -668,7 +668,7 @@ function processTitle(contextElement) {
 	if (completeTitle.length > 0) {
 	    completeTitle = completeTitle + " / "
 	};
-	completeTitle = completeTitel + processTitleInfo(altTitleElements);
+	completeTitle = completeTitle + processTitleInfo(altTitleElements);
     };
     if (completeTitle.length > 0) return completeTitle;
 
