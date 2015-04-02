@@ -648,7 +648,7 @@ function processTitleInfo(titleInfo) {
 function processTitle(contextElement) {
 	// Try to find a titleInfo element with no type specified and a title element as a
 	// child
-    var titleElements = ZU.xpath(contextElement, "./m:titleInfo[not(@type)][m:title]", xns);
+    var titleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='uniform' or not(@type)][m:title]", xns);
     var trlTitleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='translated'][m:title]", xns);
     var altTitleElements = ZU.xpath(contextElement, "./m:titleInfo[ @type='alternative'][m:title]", xns);
     var completeTitle = "";
