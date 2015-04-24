@@ -1208,9 +1208,10 @@ function doImport() {
 					processExtent(extent.textContent, newItem);
 				}
 			}
-			
+
 			newItem.date = getFirstResult(part, ['m:date[not(@point="end")][@encoding]',
-				'm:date[not(@point="end")]', 'm:date']);
+							     'm:date[not(@point="end")]', 'm:date']);
+		    Zotero.debug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date in part: " + newItem.date);
 		}
 
 		// physical description
@@ -1240,12 +1241,18 @@ function doImport() {
 				}
 			}
 			
-			// date
+		    // date
+		    if (!newItem.date) {
 			newItem.date = getFirstResult(originInfo, ['m:copyrightDate[@encoding]',
-				'm:copyrightDate', 'm:dateIssued[not(@point="end")][@encoding]',
-				'm:dateIssued[not(@point="end")]', 'm:dateIssued',
-				'm:dateCreated[@encoding]',	'm:dateCreated']) || newItem.date;
-			
+								   'm:copyrightDate',
+								   'm:dateIssued[not(@point="end")][@encoding]',
+								   'm:dateIssued[not(@point="end")]',
+								   'm:dateIssued',
+								   'm:dateCreated[@encoding]',
+								   'm:dateCreated']) || newItem.date;
+			Zotero.debug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date: " + newItem.date);
+		    }
+
 			// lastModified
 			newItem.lastModified = getFirstResult(originInfo, ['m:dateModified[@encoding]',
 				'm:dateModified']);
