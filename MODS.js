@@ -333,12 +333,12 @@ function doExport() {
 		// Don't export notes or standalone attachments
 		if(item.itemType === "note" || item.itemType === "attachment") continue;
 		
-		var mods = doc.createElementNS(ns, "mods"),
-			isPartialItem = partialItemTypes.indexOf(item.itemType) !== -1,
-			recordInfo = doc.createElementNS(ns, "recordInfo"),
-			host = doc.createElementNS(ns, "relatedItem"),
-			series = doc.createElementNS(ns, "relatedItem"),
-			topOrHost = (isPartialItem ? host : mods);
+	    var mods = doc.createElementNS(ns, "mods");
+	    var isPartialItem = partialItemTypes.indexOf(item.itemType) !== -1;
+	    var recordInfo = doc.createElementNS(ns, "recordInfo");
+	    var host = doc.createElementNS(ns, "relatedItem");
+	    var series = doc.createElementNS(ns, "relatedItem");
+	    var topOrHost = (isPartialItem ? host : mods);
 		
 		/** CORE FIELDS **/
 		
