@@ -333,12 +333,12 @@ function doExport() {
 		// Don't export notes or standalone attachments
 		if(item.itemType === "note" || item.itemType === "attachment") continue;
 		
-		var mods = doc.createElementNS(ns, "mods"),
-			isPartialItem = partialItemTypes.indexOf(item.itemType) !== -1,
-			recordInfo = doc.createElementNS(ns, "recordInfo"),
-			host = doc.createElementNS(ns, "relatedItem"),
-			series = doc.createElementNS(ns, "relatedItem"),
-			topOrHost = (isPartialItem ? host : mods);
+	    var mods = doc.createElementNS(ns, "mods");
+	    var isPartialItem = partialItemTypes.indexOf(item.itemType) !== -1;
+	    var recordInfo = doc.createElementNS(ns, "recordInfo");
+	    var host = doc.createElementNS(ns, "relatedItem");
+	    var series = doc.createElementNS(ns, "relatedItem");
+	    var topOrHost = (isPartialItem ? host : mods);
 		
 		/** CORE FIELDS **/
 		
@@ -630,20 +630,24 @@ function processTitleInfo(titleInfo) {
     var subtitle = '';
     var nonSort = '';
     var partNumber = '';
-    var i=0;
-    while (i < titleInfo.length) {
-	title = ZU.xpathText(titleInfo[i], "m:title[1]", xns).trim();
-	subtitle = ZU.xpathText(titleInfo, "m:subTitle[1]", xns);
+    Zotero.debug("TitleInfo length is: " + titleInfo.length);
+    for (var i=0; i < titleInfo.length; i++) {
+	Zotero.debug("TitleInfo round: " + i);
+	if (i > 0) title = " // ";
+	title = title + ZU.xpathText(titleInfo[i], "m:title", xns).trim();
+	subtitle = ZU.xpathText(titleInfo[i], "m:subTitle[1]", xns);
 	partNumber = ZU.xpathText(titleInfo, "m:partNumber[1]", xns);
 	if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
-	nonSort = ZU.xpathText(titleInfo, "m:nonSort[1]", xns);
+	nonSort = ZU.xpathText(titleInfo[i], "m:nonSort[1]", xns);
 	if(nonSort) title = nonSort.trim() + " " + title;
-	if(i == 1) title = " (" + title;
 	if(partNumber) title = title + " " + partNumber;
+	// if(i == 1) title = " (" + title;
 	if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
-	if(i >= 1 && i == titleInfo.length - 1) title = title + ") ";
+	// if(i >= 1 && i == titleInfo.length - 1) title = title + ") ";
 	completeTitle += title;
-	i++;
+	title = '';
+	Zotero.debug("Currrent title is now: " + title);
+	Zotero.debug("CompleteTitle is now: " + completeTitle);
     }
     return completeTitle.trim();
 }
@@ -658,11 +662,13 @@ function processTitle(contextElement) {
     if(titleElements.length) {
 	completeTitle = processTitleInfo(titleElements);
     };
+    // Zotero.debug("CompleteTitle is now: " + completeTitle);
     if(trlTitleElements.length) {
 	if (completeTitle.length > 0) {
 	    completeTitle = completeTitle + " ["
 	};
 	completeTitle = completeTitle + processTitleInfo(trlTitleElements);
+	// Zotero.debug("CompleteTitle with trlTitle: " + completeTitle);
 	if (completeTitle.length > 0) {
 	    completeTitle = completeTitle + "]"
 	};
