@@ -629,14 +629,17 @@ function processTitleInfo(titleInfo) {
     var title = '';
     var subtitle = '';
     var nonSort = '';
+    var partNumber = '';
     var i=0;
     while (i < titleInfo.length) {
 	title = ZU.xpathText(titleInfo[i], "m:title[1]", xns).trim();
 	subtitle = ZU.xpathText(titleInfo, "m:subTitle[1]", xns);
+	partNumber = ZU.xpathText(titleInfo, "m:partNumber[1]", xns);
 	if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
 	nonSort = ZU.xpathText(titleInfo, "m:nonSort[1]", xns);
 	if(nonSort) title = nonSort.trim() + " " + title;
 	if(i == 1) title = " (" + title;
+	if(partNumber) title = title + " " + partNumber;
 	if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
 	if(i >= 1 && i == titleInfo.length - 1) title = title + ") ";
 	completeTitle += title;
