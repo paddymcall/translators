@@ -636,7 +636,7 @@ function processTitleInfo(titleInfo) {
 	if (i > 0) title = " // ";
 	title = title + ZU.xpathText(titleInfo[i], "m:title", xns).trim();
 	subtitle = ZU.xpathText(titleInfo[i], "m:subTitle[1]", xns);
-	partNumber = ZU.xpathText(titleInfo, "m:partNumber[1]", xns);
+	partNumber = ZU.xpathText(titleInfo[i], "m:partNumber[1]", xns);
 	if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
 	nonSort = ZU.xpathText(titleInfo[i], "m:nonSort[1]", xns);
 	if(nonSort) title = nonSort.trim() + " " + title;
