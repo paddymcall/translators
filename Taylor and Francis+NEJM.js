@@ -9,25 +9,31 @@
 	"inRepository": true,
 	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2014-08-26 01:04:25"
+	"lastUpdated": "2016-09-21 20:31:33"
 }
 
 /*
-Taylor and Francis Translator
-Copyright (C) 2011 Sebastian Karcher
+	***** BEGIN LICENSE BLOCK *****
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+	Taylor and Francis Translator
+	Copyright © 2011 Sebastian Karcher
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
+	This file is part of Zotero.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see <http://www.gnu.org/licenses/>.
+	Zotero is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	Zotero is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU Affero General Public License for more details.
+
+	You should have received a copy of the GNU Affero General Public License
+	along with Zotero. If not, see <http://www.gnu.org/licenses/>.
+
+	***** END LICENSE BLOCK *****
 */
 
 function getTitles(doc) {
@@ -37,7 +43,7 @@ function getTitles(doc) {
 }
 
 function detectWeb(doc, url) {
-	if (url.match(/\/doi\/abs\/10\.|\/doi\/full\/10\./)) {
+	if (url.match(/\/doi\/abs\/10\.|\/doi\/full\/10\.|\/doi\/figure\/10\./)) {
 		return "journalArticle";
 	} else if(url.match(/\/action\/doSearch\?|\/toc\//) &&
 		getTitles(doc).length) {
@@ -52,7 +58,7 @@ function doWeb(doc, url) {
 		var titles = getTitles(doc);
 		var doi;
 		for(var i=0, n=titles.length; i<n; i++) {
-			doi = titles[i].href.match(/\/doi\/(?:abs|full)\/(10\.[^?#]+)/);
+			doi = titles[i].href.match(/\/doi\/(?:abs|full|figure)\/(10\.[^?#]+)/);
 			if(doi) {
 				items[doi[1]] = titles[i].textContent;
 			}
@@ -68,7 +74,7 @@ function doWeb(doc, url) {
 			scrape(null, url,dois);
 		});
 	} else {
-		var doi = url.match(/\/doi\/(?:abs|full)\/(10\.[^?#]+)/);
+		var doi = url.match(/\/doi\/(?:abs|full|figure)\/(10\.[^?#]+)/);
 		scrape(doc, url,[doi[1]]);
 	}
 }
@@ -76,6 +82,13 @@ function doWeb(doc, url) {
 function finalizeItem(item, doc, doi, baseUrl) {
 	var pdfurl = baseUrl + '/doi/pdf/';
 	var absurl = baseUrl + '/doi/abs/';
+	
+	//add keywords
+	var keywords = ZU.xpath(doc, '//div[contains(@class, "abstractKeywords")]//a');
+	for (var i=0; i<keywords.length; i++) {
+		item.tags.push(keywords[i].textContent);
+	}
+	
 
 	//add attachments
 	item.attachments = [{
@@ -132,6 +145,11 @@ function scrape(doc, url, dois) {
 					//unfortunately, bibtex is missing some data
 					//publisher, ISSN/ISBN
 					ZU.doPost(postUrl, postBody + doi + risFormat, function(text) {
+						// Y1 is online publication date
+						if (/^DA\s+-\s+/m.test(text)) {
+							text = text.replace(/^Y1(\s+-.*)/gm, '');
+						}
+						
 						risTrans = Zotero.loadTranslator("import");
 						risTrans.setTranslator("32d59d2d-b65a-4da4-b0a3-bdd3cfb979e7");
 						risTrans.setString(text);
@@ -192,7 +210,7 @@ var testCases = [
 				"libraryCatalog": "Taylor and Francis+NEJM",
 				"pages": "229-245",
 				"publicationTitle": "Journal of Economic Policy Reform",
-				"url": "http://www.tandfonline.com/doi/abs/10.1080/17487870802543480",
+				"url": "http://dx.doi.org/10.1080/17487870802543480",
 				"volume": "11",
 				"attachments": [
 					{
@@ -203,7 +221,13 @@ var testCases = [
 						"title": "Snapshot"
 					}
 				],
-				"tags": [],
+				"tags": [
+					"Peru",
+					"employment",
+					"informality",
+					"labor costs",
+					"training"
+				],
 				"notes": [],
 				"seeAlso": []
 			}
@@ -247,7 +271,7 @@ var testCases = [
 				"libraryCatalog": "Taylor and Francis+NEJM",
 				"pages": "229-245",
 				"publicationTitle": "Journal of Economic Policy Reform",
-				"url": "http://www.tandfonline.com/doi/abs/10.1080/17487870802543480",
+				"url": "http://dx.doi.org/10.1080/17487870802543480",
 				"volume": "11",
 				"attachments": [
 					{
@@ -258,7 +282,13 @@ var testCases = [
 						"title": "Snapshot"
 					}
 				],
-				"tags": [],
+				"tags": [
+					"Peru",
+					"employment",
+					"informality",
+					"labor costs",
+					"training"
+				],
 				"notes": [],
 				"seeAlso": []
 			}
@@ -283,7 +313,7 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"date": "September 14, 2011",
+				"date": "January 1, 2013",
 				"DOI": "10.1080/00036846.2011.568404",
 				"ISSN": "0003-6846",
 				"abstractNote": "Measuring consumers’ Willingness To Pay (WTP) without considering the level of uncertainty in valuation and the consequent risk premiums will result in estimates that are biased toward lower values. This research proposes a model and method for correctly assessing WTP in cases involving valuation uncertainty. The new method, called Risk Adjustment Mechanism (RAM), is presented theoretically and demonstrated empirically. It is shown that the RAM outperforms the traditional method for assessing WTP, especially in a context of a nonmarket good such as a totally new product.",
@@ -292,7 +322,7 @@ var testCases = [
 				"libraryCatalog": "Taylor and Francis+NEJM",
 				"pages": "37-46",
 				"publicationTitle": "Applied Economics",
-				"url": "http://www.tandfonline.com/doi/abs/10.1080/00036846.2011.568404",
+				"url": "http://dx.doi.org/10.1080/00036846.2011.568404",
 				"volume": "45",
 				"attachments": [
 					{
@@ -303,7 +333,15 @@ var testCases = [
 						"title": "Snapshot"
 					}
 				],
-				"tags": [],
+				"tags": [
+					"D12",
+					"D81",
+					"M31",
+					"adjustment mechanism",
+					"contigent valuation method",
+					"purchase decisions",
+					"willingness to pay"
+				],
 				"notes": [],
 				"seeAlso": []
 			}
@@ -343,17 +381,17 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"date": "September 26, 2012",
+				"date": "September 27, 2012",
 				"DOI": "10.1056/NEJMp1207920",
 				"ISSN": "0028-4793",
-				"abstractNote": "Four fundamental principles drive public funding for family planning. First, unintended pregnancy is associated with negative health consequences, including reduced use of prenatal care, lower breast-feeding rates, and poor maternal and neonatal outcomes.1,2 Second, governments realize substantial cost savings by investing in family planning, which reduces the rate of unintended pregnancies and the costs of prenatal, delivery, postpartum, and infant care.3 Third, all Americans have the right to choose the timing and number of their children. And fourth, family planning enables women to attain their educational and career goals and families to provide for their children. These principles led . . .",
+				"abstractNote": "In 2011, Texas slashed funding for family planning services and imposed new restrictions on abortion care, affecting the health care of many low-income women. For demographically similar states, Texas's experience may be a harbinger of public health effects to come.",
 				"extra": "PMID: 23013071",
 				"issue": "13",
 				"itemID": "doi:10.1056/NEJMp1207920",
 				"libraryCatalog": "Taylor and Francis+NEJM",
 				"pages": "1179-1181",
 				"publicationTitle": "New England Journal of Medicine",
-				"url": "http://www.nejm.org/doi/full/10.1056/NEJMp1207920",
+				"url": "http://dx.doi.org/10.1056/NEJMp1207920",
 				"volume": "367",
 				"attachments": [
 					{
@@ -376,7 +414,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "journalArticle",
-				"title": "<no title>",
+				"title": "Multicriteria Evaluation of High-speed Rail, Transrapid Maglev and Air Passenger Transport in Europe",
 				"creators": [
 					{
 						"firstName": "Milan",
@@ -404,7 +442,13 @@ var testCases = [
 						"title": "Snapshot"
 					}
 				],
-				"tags": [],
+				"tags": [
+					"Entropy method; ",
+					"Europe; ",
+					"High-speed transport systems; ",
+					"Interest groups ",
+					"Multicriteria analysis; "
+				],
 				"notes": [],
 				"seeAlso": []
 			}
@@ -454,7 +498,67 @@ var testCases = [
 						"title": "Snapshot"
 					}
 				],
-				"tags": [],
+				"tags": [
+					"CO2 diffusion",
+					"CO2 evolution",
+					"CO2 sorption",
+					"concentration dependence"
+				],
+				"notes": [],
+				"seeAlso": []
+			}
+		]
+	},
+	{
+		"type": "web",
+		"url": "http://www.tandfonline.com/doi/figure/10.1080/00014788.2016.1157680?scroll=top&needAccess=true",
+		"items": [
+			{
+				"itemType": "journalArticle",
+				"title": "Stakeholder perceptions of performance audit credibility",
+				"creators": [
+					{
+						"firstName": "Warwick",
+						"lastName": "Funnell",
+						"creatorType": "author"
+					},
+					{
+						"firstName": "Margaret",
+						"lastName": "Wade",
+						"creatorType": "author"
+					},
+					{
+						"firstName": "Robert",
+						"lastName": "Jupe",
+						"creatorType": "author"
+					}
+				],
+				"date": "September 18, 2016",
+				"DOI": "10.1080/00014788.2016.1157680",
+				"ISSN": "0001-4788",
+				"abstractNote": "This paper examines the credibility of performance audit at the micro-level of practice using the general framework of Birnbaum and Stegner's theory of source credibility in which credibility is dependent upon perceptions of the independence of the auditors, their technical competence and the usefulness of audit findings. It reports the results of a field study of a performance audit by the Australian National Audit Office conducted in a major government department. The paper establishes that problems of auditor independence, technical competence and perceived audit usefulness continue to limit the credibility of performance auditing.",
+				"issue": "6",
+				"itemID": "doi:10.1080/00014788.2016.1157680",
+				"libraryCatalog": "Taylor and Francis+NEJM",
+				"pages": "601-619",
+				"publicationTitle": "Accounting and Business Research",
+				"url": "http://dx.doi.org/10.1080/00014788.2016.1157680",
+				"volume": "46",
+				"attachments": [
+					{
+						"title": "Full Text PDF",
+						"mimeType": "application/pdf"
+					},
+					{
+						"title": "Snapshot"
+					}
+				],
+				"tags": [
+					"Australian National Audit Office",
+					"credibility",
+					"performance auditing",
+					"source"
+				],
 				"notes": [],
 				"seeAlso": []
 			}
