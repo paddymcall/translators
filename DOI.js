@@ -5,17 +5,19 @@
 	"target": "",
 	"minVersion": "3.0",
 	"maxVersion": "",
-	"priority": 320,
+	"priority": 400,
 	"inRepository": true,
 	"translatorType": 4,
 	"browserSupport": "gcsv",
-	"lastUpdated": "2014-10-30 22:11:11"
+	"lastUpdated": "2016-11-05 10:57:01"
 }
 
+// The variables items and selectArray will be filled during the first
+// as well as the second retrieveDOIs function call and therefore they
+// are defined global.
 var items = {};
 var selectArray = {};
 
-var __num_DOIs;
 
 // builds a list of DOIs
 function getDOIs(doc) {
@@ -25,12 +27,17 @@ function getDOIs(doc) {
 	// characters except for control characters. Here, we're cheating
 	// by not allowing ampersands, to fix an issue with getting DOIs
 	// out of URLs.
+  // Additionally, all content inside <noscript> is picked up as text()
+  // by the xpath, which we don't necessarily want to exclude, but
+  // that means that we can get DOIs inside node attributes and we should
+	// exclude quotes in this case.
+  // DOI should never end with a period or a comma (we hope)
 	// Description at: http://www.doi.org/handbook_2000/appendix_1.html#A1-4
-	const DOIre = /\b10\.[0-9]{4,}\/[^\s&]*[^\s\&\.,]/g;
+	const DOIre = /\b10\.[0-9]{4,}\/[^\s&"']*[^\s&"'.,]/g;
 	const DOIXPath = "//text()[contains(., '10.')]\
 						[not(parent::script or parent::style)]";
 
-	var DOIs = [];
+	var dois = [];
 
 	var node, m, DOI;
 	var results = doc.evaluate(DOIXPath, doc, null, XPathResult.ANY_TYPE, null);
@@ -42,14 +49,17 @@ function getDOIs(doc) {
 			if(DOI.substr(-1) == ")" && DOI.indexOf("(") == -1) {
 				DOI = DOI.substr(0, DOI.length-1);
 			}
+			if(DOI.substr(-1) == "}" && DOI.indexOf("{") == -1) {
+				DOI = DOI.substr(0, DOI.length-1);
+			}
 			// only add new DOIs
-			if(DOIs.indexOf(DOI) == -1) {
-				DOIs.push(DOI);
+			if(dois.indexOf(DOI) == -1) {
+				dois.push(DOI);
 			}
 		}
 	}
 
-	return DOIs;
+	return dois;
 }
 
 function detectWeb(doc, url) {
@@ -61,7 +71,7 @@ function detectWeb(doc, url) {
 	if(!blacklistRe.test(url)) {
 		var DOIs = getDOIs(doc);
 		if(DOIs.length) {
-			return DOIs.length == 1 ? "journalArticle" : "multiple";
+			return "multiple";
 		}
 	}
 	return false;
@@ -77,11 +87,6 @@ function completeDOIs(doc) {
 	}
 	if(numDOIs == 0) {
 		throw "DOI Translator: could not find DOI";
-	} else if(numDOIs == 1) {
-		// do we want to add URL of the page?
-		items[DOI].url = doc.location.href;
-		items[DOI].attachments = [{document:doc}];
-		items[DOI].complete();
 	} else {
 		Zotero.selectItems(selectArray, function(selectedDOIs) {
 			if(!selectedDOIs) return true;
@@ -93,33 +98,47 @@ function completeDOIs(doc) {
 	}
 }
 
-function retrieveDOIs(DOIs, doc) {
-	__num_DOIs = DOIs.length;
+function retrieveDOIs(dois, doc, providers) {
+	var numDois = dois.length;
+	var provider = providers.shift();
+	
+	var remainingDOIs = dois.slice();//copy array but not by reference
 
-	for(var i=0, n=DOIs.length; i<n; i++) {
+	for(var i=0, n=dois.length; i<n; i++) {
 		(function(doc, DOI) {
 			var translate = Zotero.loadTranslator("search");
-			translate.setTranslator("11645bd1-0420-45c1-badb-53fb41eeb753");
+			translate.setTranslator(provider.id);
 	
 			var item = {"itemType":"journalArticle", "DOI":DOI};
 			translate.setSearch(item);
 	
 			// don't save when item is done
 			translate.setHandler("itemDone", function(translate, item) {
+				selectArray[item.DOI] = item.title;
 				if (!item.title) {
-					Zotero.debug("No title available for " + DOI);
-					return;
+					Zotero.debug("No title available for " + item.DOI);
+					item.title = "[No Title]";
+					selectArray[item.DOI] = "[" + item.DOI + "]";
 				}
-				
-				item.repository = "CrossRef";
-				items[DOI] = item;
-				selectArray[DOI] = item.title;
+				items[item.DOI] = item;
+
+				// done means not remaining anymore
+				if (remainingDOIs.indexOf(item.DOI) > -1) {
+					remainingDOIs.splice(remainingDOIs.indexOf(item.DOI), 1);
+				} else {
+					Z.debug(item.DOI + " not anymore in the list of remainingDOIs = " + remainingDOIs);
+				}
 			});
 	
 			translate.setHandler("done", function(translate) {
-				__num_DOIs--;
-				if(__num_DOIs <= 0) {
-					completeDOIs(doc);
+				numDois--;
+				if(numDois <= 0) {
+					Z.debug("Done with " + provider.name + ". Remaining DOIs: " + remainingDOIs);
+					if (providers.length > 0 && remainingDOIs.length > 0) {
+						retrieveDOIs(remainingDOIs, doc, providers);
+					} else {
+						completeDOIs(doc);
+					}
 				}
 			});
 	
@@ -127,18 +146,25 @@ function retrieveDOIs(DOIs, doc) {
 			translate.setHandler("error", function() {});
 	
 			translate.translate();
-		})(doc, DOIs[i]);
+		})(doc, dois[i]);
 	}
 }
 
 function doWeb(doc, url) {
-	var DOIs = getDOIs(doc);
-
-	// retrieve full items asynchronously
-	retrieveDOIs(DOIs, doc);
+	var dois = getDOIs(doc);
+	Z.debug(dois);
+	var providers = [
+		{
+			id : "11645bd1-0420-45c1-badb-53fb41eeb753",
+			name : "CrossRef"
+		},
+		{
+			id : "9f1fb86b-92c8-4db7-b8ee-0b481d456428",
+			name : "DataCite"
+		}
+	];
+	retrieveDOIs(dois, doc, providers);
 }
-
-
 /** BEGIN TEST CASES **/
 var testCases = [
 	{
@@ -149,41 +175,22 @@ var testCases = [
 	{
 		"type": "web",
 		"url": "http://libguides.csuchico.edu/citingbusiness",
-		"items": [
-			{
-				"itemType": "journalArticle",
-				"creators": [
-					{
-						"creatorType": "author",
-						"firstName": "Jean M.",
-						"lastName": "Twenge"
-					},
-					{
-						"creatorType": "author",
-						"firstName": "Stacy M.",
-						"lastName": "Campbell"
-					}
-				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [
-					{}
-				],
-				"publicationTitle": "Journal of Managerial Psychology",
-				"volume": "23",
-				"issue": "8",
-				"language": "en",
-				"ISSN": "0268-3946",
-				"date": "2008",
-				"pages": "862-877",
-				"DOI": "10.1108/02683940810904367",
-				"url": "http://libguides.csuchico.edu/citingbusiness",
-				"title": "Generational differences in psychological traits and their impact on the workplace",
-				"libraryCatalog": "CrossRef",
-				"accessDate": "CURRENT_TIMESTAMP"
-			}
-		]
+		"items": "multiple"
+	},
+	{
+		"type": "web",
+		"url": "http://www.egms.de/static/de/journals/mbi/2015-15/mbi000336.shtml",
+		"items": "multiple"
+	},
+	{
+		"type": "web",
+		"url": "http://www.roboticsproceedings.org/rss09/p23.html",
+		"items": "multiple"
+	},
+	{
+		"type": "web",
+		"url": "https://en.wikipedia.org/wiki/Template_talk:Doi",
+		"items": "multiple"
 	}
 ]
 /** END TEST CASES **/

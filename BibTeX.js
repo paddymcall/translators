@@ -18,7 +18,7 @@
 	"inRepository": true,
 	"translatorType": 3,
 	"browserSupport": "gcsv",
-	"lastUpdated": "2014-11-22 12:43:04"
+	"lastUpdated": "2017-03-11 13:39:28"
 }
 
 function detectImport() {
@@ -87,6 +87,15 @@ var fieldMap = {
   	language:"language",
   	assignee:"assignee"
 };
+
+// Fields for which upper case letters will be protected on export
+var caseProtectedFields = [
+	"title",
+	"type",
+	"shorttitle",
+	"booktitle",
+	"series"
+];
 
 // Import/export in BibTeX
 var extraIdentifiers = {
@@ -221,16 +230,20 @@ var alwaysMap = {
 	"~":"{\\textasciitilde}",
 	"^":"{\\textasciicircum}",
 	"\\":"{\\textbackslash}",
-	"{" : "\\{",
-	"}" : "\\}"
+	// See http://tex.stackexchange.com/questions/230750/open-brace-in-bibtex-fields/230754
+	"{" : "\\{\\vphantom{\\}}",
+	"}" : "\\vphantom{\\{}\\}"
 };
 
 
 var strings = {};
 var keyRe = /[a-zA-Z0-9\-]/;
-var keywordSplitOnSpace = true;
-var keywordDelimRe = '\\s*[,;]\\s*';
-var keywordDelimReFlags = '';
+
+// Split keywords on space by default when called from another translator
+// This is purely for historical reasons. Otherwise we risk breaking tag import
+// from some websites
+var keywordSplitOnSpace = !!Zotero.parentTranslator;
+var keywordDelimRe = /\s*[,;]\s*/;
 
 function setKeywordSplitOnSpace( val ) {
 	keywordSplitOnSpace = val;
@@ -239,18 +252,24 @@ function setKeywordSplitOnSpace( val ) {
 function setKeywordDelimRe( val, flags ) {
 	//expect string, but it could be RegExp
 	if(typeof(val) != 'string') {
-		keywordDelimRe = val.toString().slice(1, val.toString().lastIndexOf('/'));
-		keywordDelimReFlags = val.toString().slice(val.toString().lastIndexOf('/')+1);
-	} else {
-		keywordDelimRe = val;
-		keywordDelimReFlags = flags;
+		val = val.toString();
+		flags = val.slice(val.lastIndexOf('/')+1);
+		val = val.slice(1, val.lastIndexOf('/'));
 	}
+	
+	keywordDelimRe = new RegExp(val, flags);
 }
 
 function processField(item, field, value, rawValue) {
 	if(Zotero.Utilities.trim(value) == '') return null;
 	if(fieldMap[field]) {
-		item[fieldMap[field]] = value;
+		//map DOIs + Label to Extra for unsupported item types
+		if (field == "doi" &&!ZU.fieldIsValidForType("DOI", item.itemType) && ZU.cleanDOI(value)) {
+			item._extraFields.push({field: "DOI", value: ZU.cleanDOI(value)});
+		}
+		else {
+			item[fieldMap[field]] = value;
+		}
 	} else if(inputFieldMap[field]) {
 		item[inputFieldMap[field]] = value;
 	} else if(field == "subtitle") {
@@ -275,13 +294,13 @@ function processField(item, field, value, rawValue) {
 		}
 	} else if(field == "fjournal") {
 		if(item.publicationTitle) {
-			// move publicationTitle to abbreviation, since itprobably came from 'journal'
+			// move publicationTitle to abbreviation, since it probably came from 'journal'
 			item.journalAbbreviation = item.publicationTitle;
 		}
 		item.publicationTitle = value;
 	} else if(field == "author" || field == "editor" || field == "translator") {
 		// parse authors/editors/translators
-		var names = splitUnprotected(rawValue.trim(), /\sand\s/gi);
+		var names = splitUnprotected(rawValue.trim(), /\s+and\s+/gi);
 		for(var i in names) {
 			var name = names[i];
 			// skip empty names
@@ -360,7 +379,17 @@ function processField(item, field, value, rawValue) {
 			item.pages = value.replace(/--/g, "-");
 		}
 	} else if(field == "note") {
-		item._extraFields.push({raw: value.trim()});
+		var isExtraId = false;
+		for (var element in extraIdentifiers) {
+			if (value.trim().startsWith(extraIdentifiers[element])) {
+				isExtraId = true;
+			}
+		}
+		if (isExtraId) {
+			item._extraFields.push({raw: value.trim()});
+		} else {
+			item.notes.push({note:Zotero.Utilities.text2html(value)});
+		}
 	} else if(field == "howpublished") {
 		if(value.length >= 7) {
 			var str = value.substr(0, 7);
@@ -377,12 +406,9 @@ function processField(item, field, value, rawValue) {
 	else if (field == "lastchecked"|| field == "urldate"){
 		item.accessDate = value;
 	} else if(field == "keywords" || field == "keyword") {
-		var re = new RegExp(keywordDelimRe, keywordDelimReFlags);
-		if(!value.match(re) && keywordSplitOnSpace) {
-			// keywords/tags
+		item.tags = value.split(keywordDelimRe);
+		if(item.tags.length == 1 && keywordSplitOnSpace) {
 			item.tags = value.split(/\s+/);
-		} else {
-			item.tags = value.split(re);
 		}
 	} else if (field == "comment" || field == "annote" || field == "review" || field == "notes") {
 		item.notes.push({note:Zotero.Utilities.text2html(value)});
@@ -625,6 +651,16 @@ function unescapeBibTeX(value) {
 	}
 	value = value.replace(/\\\\/g, "\\");
 	value = value.replace(/\s+/g, " ");
+	
+	// Unescape HTML entities coming from web translators
+	if (Zotero.parentTranslator && value.indexOf('&') != -1) {
+		value = value.replace(/&#?\w+;/g, function(entity) {
+			var char = ZU.unescapeHTML(entity);
+			if (char == entity) char = ZU.unescapeHTML(entity.toLowerCase()); // Sometimes case can be incorrect and entities are case-sensitive
+			
+			return char;
+		});
+	}
 	
 	return value;
 }
@@ -891,25 +927,10 @@ function writeField(field, value, isMacro) {
 	// Other fields (DOI?) may need similar treatment
 	if (!isMacro && !(field == "url" || field == "doi" || field == "file" || field == "lccn" )) {
 		// I hope these are all the escape characters!
-		value = value.replace(/[|\<\>\~\^\\\{\}]/g, mapEscape).replace(/([\#\$\%\&\_])/g, "\\$1");
-
-		//disable 
-		/** if (field == "title" || field == "type" || field == "shorttitle" || field == "booktitle" || field == "series") {
-			if (!isTitleCase(value)) {
-				//protect caps for everything but the first letter
-				value = value.replace(/(.)([A-Z]+)/g, "$1{$2}");
-			} else {	//protect all-caps vords and initials
-				value = value.replace(/([\s.-])([A-Z]+)(?=\.)/g, "$1{$2}");	//protect initials
-				if(value.toUpperCase() != value) value = value.replace(/(\s)([A-Z]{2,})(?=[\.,\s]|$)/g, "$1{$2}");
-			}
-		} 
-		**/
-
-		// Case of words with uppercase characters in non-initial positions is preserved with braces.
-		// we're looking at all unicode letters
-		var protectCaps = new ZU.XRegExp("\\b\\p{Letter}+\\p{Uppercase_Letter}\\p{Letter}*", 'g')
-		if (field != "pages") {
-			value = ZU.XRegExp.replace(value, protectCaps, "{$0}");
+		value = escapeSpecialCharacters(value);
+		
+		if (caseProtectedFields.indexOf(field) != -1) {
+			value = ZU.XRegExp.replace(value, protectCapsRE, "$1{$2$3}"); // only $2 or $3 will have a value, not both
 		}
 	}
 	if (Zotero.getOption("exportCharset") != "UTF-8") {
@@ -979,22 +1000,48 @@ function isTitleCase(string) {
 }
 */
 
-function mapEscape(character) {
-	return alwaysMap[character];
+// See http://tex.stackexchange.com/questions/230750/open-brace-in-bibtex-fields/230754
+var vphantomRe = /\\vphantom{\\}}((?:.(?!\\vphantom{\\}}))*)\\vphantom{\\{}/g;
+function escapeSpecialCharacters(str) {
+	var newStr = str.replace(/[|\<\>\~\^\\\{\}]/g, function(c) { return alwaysMap[c] })
+		.replace(/([\#\$\%\&\_])/g, "\\$1");
+	
+	// We escape each brace in the text by making sure that it has a counterpart,
+	// but sometimes this is overkill if the brace already has a counterpart in
+	// the text.
+	if (newStr.indexOf('\\vphantom') != -1) {
+		var m;
+		while (m = vphantomRe.exec(newStr)) {
+			// Can't use a simple replace, because we want to match up inner with inner
+			// and outer with outer
+			newStr = newStr.substr(0,m.index) + m[1] + newStr.substr(m.index + m[0].length);
+			vphantomRe.lastIndex = 0; // Start over, because the previous replacement could have created a new pair
+		}
+	}
+	
+	return newStr;
 }
 
 function mapAccent(character) {
 	return (mappingTable[character] ? mappingTable[character] : "?");
 }
 
-var filePathSpecialChars = '\\\\:;{}$'; // $ for Mendeley
+var filePathSpecialChars = '\\\\:;$'; // $ for Mendeley (see cleanFilePath for {})
 var encodeFilePathRE = new RegExp('[' + filePathSpecialChars + ']', 'g');
 
+// We strip out {} in general, because \{ and \} still break BibTeX (0.99d)
+function cleanFilePath(str) {
+	if (!str) return '';
+	return str.replace(/(?:\s*[{}]+)+\s*/g, ' ');
+}
+
 function encodeFilePathComponent(value) {
+	if (!value) return '';
 	return value.replace(encodeFilePathRE, "\\$&");
 }
 
 function decodeFilePathComponent(value) {
+	if (!value) return '';
 	return value.replace(/\\([^A-Za-z0-9.])/g, "$1");
 }
 
@@ -1030,10 +1077,11 @@ function tidyAccents(s) {
 
 var numberRe = /^[0-9]+/;
 // Below is a list of words that should not appear as part of the citation key
-// in includes the indefinite articles of English, German, French and Spanish, as well as a small set of English prepositions whose 
+// it includes the indefinite articles of English, German, French and Spanish, as well as a small set of English prepositions whose 
 // force is more grammatical than lexical, i.e. which are likely to strike many as 'insignificant'.
 // The assumption is that most who want a title word in their key would prefer the first word of significance.
-var citeKeyTitleBannedRe = /\b(a|an|the|some|from|on|in|to|of|do|with|der|die|das|ein|eine|einer|eines|einem|einen|un|une|la|le|l\'|el|las|los|al|uno|una|unos|unas|de|des|del|d\')(\s+|\b)/g;
+// Also remove markup
+var citeKeyTitleBannedRe = /\b(a|an|the|some|from|on|in|to|of|do|with|der|die|das|ein|eine|einer|eines|einem|einen|un|une|la|le|l\'|el|las|los|al|uno|una|unos|unas|de|des|del|d\')(\s+|\b)|(<\/?(i|b|sup|sub|sc|span style=\"small-caps\"|span)>)/g;
 var citeKeyConversionsRe = /%([a-zA-Z])/;
 var citeKeyCleanRe = /[^a-z0-9\!\$\&\*\+\-\.\/\:\;\<\>\?\[\]\^\_\`\|]+/g;
 
@@ -1042,13 +1090,13 @@ var citeKeyConversions = {
 		if(item.creators && item.creators[0] && item.creators[0].lastName) {
 			return item.creators[0].lastName.toLowerCase().replace(/ /g,"_").replace(/,/g,"");
 		}
-		return "";
+		return "noauthor";
 	},
 	"t":function (flags, item) {
 		if (item["title"]) {
 			return item["title"].toLowerCase().replace(citeKeyTitleBannedRe, "").split(/\s+/g)[0];
 		}
-		return "";
+		return "notitle";
 	},
 	"y":function (flags, item) {
 		if(item.date) {
@@ -1057,7 +1105,7 @@ var citeKeyConversions = {
 				return date.year;
 			}
 		}
-		return "????";
+		return "nodate";
 	}
 }
 
@@ -1111,7 +1159,23 @@ function buildCiteKey (item,citekeys) {
 	return citekey;
 }
 
+var protectCapsRE;
 function doExport() {
+	if (Zotero.getHiddenPref && Zotero.getHiddenPref('BibTeX.export.dontProtectInitialCase')) {
+		// Case of words with uppercase characters in non-initial positions is
+		// preserved with braces.
+		// Two extra captures because of the other regexp below
+		protectCapsRE = new ZU.XRegExp("()()\\b(\\p{Letter}+\\p{Uppercase_Letter}\\p{Letter}*)", 'g');
+	} else {
+		// Protect all upper case letters, even if the uppercase letter is only in
+		// initial position of the word.
+		// Don't protect first word if only first letter is capitalized
+		protectCapsRE = new ZU.XRegExp(
+			"(.)\\b(\\p{Letter}*\\p{Uppercase_Letter}\\p{Letter}*)" // Non-initial words with capital letter anywhere
+				+ "|^(\\p{Letter}+\\p{Uppercase_Letter}\\p{Letter}*)" // Initial word with capital in non-initial position
+			, 'g');
+	}
+	
 	//Zotero.write("% BibTeX export generated by Zotero "+Zotero.Utilities.getVersion());
 	// to make sure the BOM gets ignored
 	Zotero.write("\n");
@@ -1189,9 +1253,8 @@ function doExport() {
 					creatorString = creator.lastName;
 				}
 				
-				creatorString = creatorString.replace(/[|\<\>\~\^\\\{\}]/g, mapEscape)
-					.replace(/([\#\$\%\&\_])/g, "\\$1");
-																			
+				creatorString = escapeSpecialCharacters(creatorString);
+				
 				if (creator.fieldMode == true) { // fieldMode true, assume corporate author
 					creatorString = "{" + creatorString + "}";
 				} else {
@@ -1289,14 +1352,22 @@ function doExport() {
 			
 			for(var i in item.attachments) {
 				var attachment = item.attachments[i];
+				// Unfortunately, it looks like \{ in file field breaks BibTeX (0.99d)
+				// even if properly backslash escaped, so we have to make sure that
+				// it doesn't make it into this field at all
+				var title = cleanFilePath(attachment.title),
+					path = null;
+				
 				if(Zotero.getOption("exportFileData") && attachment.saveFile) {
-					attachment.saveFile(attachment.defaultPath, true);
-					attachmentString += ";" + encodeFilePathComponent(attachment.title)
-						+ ":" + encodeFilePathComponent(attachment.defaultPath)
-						+ ":" + encodeFilePathComponent(attachment.mimeType);
+					path = cleanFilePath(attachment.defaultPath);
+					attachment.saveFile(path, true);
 				} else if(attachment.localPath) {
-					attachmentString += ";" + encodeFilePathComponent(attachment.title)
-						+ ":" + encodeFilePathComponent(attachment.localPath)
+					path = cleanFilePath(attachment.localPath);
+				}
+				
+				if (path) {
+					attachmentString += ";" + encodeFilePathComponent(title)
+						+ ":" + encodeFilePathComponent(path)
 						+ ":" + encodeFilePathComponent(attachment.mimeType);
 				}
 			}
@@ -2145,6 +2216,8 @@ var mappingTable = {
 	"\u016B":"{\\=u}", // LATIN SMALL LETTER U WITH MACRON
 	"\u016C":"{\\u U}", // LATIN CAPITAL LETTER U WITH BREVE
 	"\u016D":"{\\u u}", // LATIN SMALL LETTER U WITH BREVE
+	"\u016E":"{\\r U}", // LATIN CAPITAL U WITH A RING ABOVE
+	"\u016F":"{\\r u}", // LATIN SMALL U WITH A RING ABOVE
 	"\u0170":"{\\H U}", // LATIN CAPITAL LETTER U WITH DOUBLE ACUTE
 	"\u0171":"{\\H u}", // LATIN SMALL LETTER U WITH DOUBLE ACUTE
 	"\u0172":"{\\k U}", // LATIN CAPITAL LETTER U WITH OGONEK
@@ -2273,6 +2346,8 @@ var mappingTable = {
 	"\u1E95":"{\\b z}", // LATIN SMALL LETTER Z WITH LINE BELOW
 	"\u1E96":"{\\b h}", // LATIN SMALL LETTER H WITH LINE BELOW
 	"\u1E97":"{\\\"t}", // LATIN SMALL LETTER T WITH DIAERESIS
+	"\u1E98":"{\\r w}", // LATIN SMALL W WITH A RING ABOVE
+	"\u1E99":"{\\r y}", // LATIN SMALL Y WITH A RING ABOVE
 	"\u1EA0":"{\\d A}", // LATIN CAPITAL LETTER A WITH DOT BELOW
 	"\u1EA1":"{\\d a}", // LATIN SMALL LETTER A WITH DOT BELOW
 	"\u1EB8":"{\\d E}", // LATIN CAPITAL LETTER E WITH DOT BELOW
@@ -2664,6 +2739,8 @@ var reversemappingTable = {
 	"{\\=u}"                          : "\u016B", // LATIN SMALL LETTER U WITH MACRON
 	"{\\u U}"                          : "\u016C", // LATIN CAPITAL LETTER U WITH BREVE
 	"{\\u u}"                          : "\u016D", // LATIN SMALL LETTER U WITH BREVE
+	"{\\r U}"                          : "\u016E", // LATIN CAPITAL LETTER U WITH RING ABOVE
+	"{\\r u}"                          : "\u016F", // LATIN SMALL LETTER U WITH RING ABOVE
 	"{\\H U}"                          : "\u0170", // LATIN CAPITAL LETTER U WITH DOUBLE ACUTE
 	"{\\H u}"                          : "\u0171", // LATIN SMALL LETTER U WITH DOUBLE ACUTE
 	"{\\k U}"                          : "\u0172", // LATIN CAPITAL LETTER U WITH OGONEK
@@ -2792,6 +2869,8 @@ var reversemappingTable = {
 	"{\\b z}"                          : "\u1E95", // LATIN SMALL LETTER Z WITH LINE BELOW
 	"{\\b h}"                          : "\u1E96", // LATIN SMALL LETTER H WITH LINE BELOW
 	"{\\\"t}"                         : "\u1E97", // LATIN SMALL LETTER T WITH DIAERESIS
+	"{\\r w}"                          : "\u1E98", // LATIN SMALL LETTER W WITH RING ABOVE
+	"{\\r y}"                          : "\u1e99", // LATIN SMALL LETTER Y WITH RING ABOVE
 	"{\\d A}"                          : "\u1EA0", // LATIN CAPITAL LETTER A WITH DOT BELOW
 	"{\\d a}"                          : "\u1EA1", // LATIN SMALL LETTER A WITH DOT BELOW
 	"{\\d E}"                          : "\u1EB8", // LATIN CAPITAL LETTER E WITH DOT BELOW
@@ -2820,6 +2899,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "journalArticle",
+				"title": "The physical volcanology of the 1600 eruption of Huaynaputina, southern Peru",
 				"creators": [
 					{
 						"firstName": "Nancy K",
@@ -2857,13 +2937,11 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"notes": [],
-				"tags": [
-					"Vulcanian eruptions",
-					"breadcrust",
-					"plinian"
-				],
-				"seeAlso": [],
+				"date": "2001",
+				"itemID": "Adams2001",
+				"pages": "493–518",
+				"publicationTitle": "Bulletin of Volcanology",
+				"volume": "62",
 				"attachments": [
 					{
 						"path": "Users/heatherwright/Documents/Scientific Papers/Adams_Huaynaputina.pdf",
@@ -2871,12 +2949,13 @@ var testCases = [
 						"title": "Attachment"
 					}
 				],
-				"itemID": "Adams2001",
-				"publicationTitle": "Bulletin of Volcanology",
-				"pages": "493–518",
-				"title": "The physical volcanology of the 1600 eruption of Huaynaputina, southern Peru",
-				"volume": "62",
-				"date": "2001"
+				"tags": [
+					"Vulcanian eruptions",
+					"breadcrust",
+					"plinian"
+				],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -2886,6 +2965,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "book",
+				"title": "Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables",
 				"creators": [
 					{
 						"firstName": "Milton",
@@ -2898,19 +2978,19 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
+				"date": "1964",
+				"edition": "ninth Dover printing, tenth GPO printing",
 				"itemID": "abramowitz+stegun",
 				"place": "New York",
-				"edition": "ninth Dover printing, tenth GPO printing",
-				"title": "Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables",
 				"publisher": "Dover",
-				"date": "1964"
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			},
 			{
 				"itemType": "book",
+				"title": "The Yankee Years",
 				"creators": [
 					{
 						"firstName": "Joe",
@@ -2923,15 +3003,14 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
-				"itemID": "Torre2008",
+				"date": "2008",
 				"ISBN": "0385527403",
+				"itemID": "Torre2008",
 				"publisher": "Doubleday",
-				"title": "The Yankee Years",
-				"date": "2008"
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -2941,6 +3020,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "conferencePaper",
+				"title": "Some publication title",
 				"creators": [
 					{
 						"firstName": "First",
@@ -2953,16 +3033,16 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
 				"itemID": "author:06",
-				"title": "Some publication title",
-				"pages": "330—331"
+				"pages": "330—331",
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			},
 			{
 				"itemType": "book",
+				"title": "Proceedings of the Xth Conference on XYZ",
 				"creators": [
 					{
 						"firstName": "First",
@@ -2975,13 +3055,12 @@ var testCases = [
 						"creatorType": "editor"
 					}
 				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
+				"date": "October 2006",
 				"itemID": "conference:06",
-				"title": "Proceedings of the Xth Conference on XYZ",
-				"date": "October 2006"
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -2991,6 +3070,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "book",
+				"title": "Design of a Carbon Fiber Composite Grid Structure for the GLAST Spacecraft Using a Novel Manufacturing Technique",
 				"creators": [
 					{
 						"firstName": "Michael, III",
@@ -2998,17 +3078,16 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
+				"date": "2001",
+				"ISBN": "0-69-697269-4",
+				"edition": "1st,",
 				"itemID": "hicks2001",
 				"place": "Palo Alto",
-				"edition": "1st,",
-				"ISBN": "0-69-697269-4",
-				"title": "Design of a Carbon Fiber Composite Grid Structure for the GLAST Spacecraft Using a Novel Manufacturing Technique",
 				"publisher": "Stanford Press",
-				"date": "2001"
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -3018,6 +3097,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "journalArticle",
+				"title": "USGS monitoring ecological impacts",
 				"creators": [
 					{
 						"firstName": "A",
@@ -3025,17 +3105,16 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
-				"itemID": "Oliveira_2009",
-				"issue": "29",
-				"title": "USGS monitoring ecological impacts",
-				"volume": "107",
-				"publicationTitle": "Oil & Gas Journal",
 				"date": "2009",
-				"pages": "29"
+				"issue": "29",
+				"itemID": "Oliveira_2009",
+				"pages": "29",
+				"publicationTitle": "Oil & Gas Journal",
+				"volume": "107",
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -3045,13 +3124,13 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "journalArticle",
+				"title": "non-braking space: ; accented characters: ñ and ñ; tilde operator: ∼",
 				"creators": [],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
 				"itemID": "test-ticket1661",
-				"title": "non-braking space: ; accented characters: ñ and ñ; tilde operator: ∼"
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -3061,6 +3140,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "journalArticle",
+				"title": "Test of markupconversion: Italics, bold, superscript, subscript, and small caps: Mitochondrial DNA<sub>2</sub>$ sequences suggest unexpected phylogenetic position of Corso-Sardinian grass snakes (<i>Natrix cetti</i>) and <b>do not</b> support their <span style=\"small-caps\">species status</span>, with notes on phylogeography and subspecies delineation of grass snakes.",
 				"creators": [
 					{
 						"firstName": "U.",
@@ -3078,17 +3158,16 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
-				"itemID": "Frit2",
-				"DOI": "10.1007/s13127-011-0069-8",
-				"title": "Test of markupconversion: Italics, bold, superscript, subscript, and small caps: Mitochondrial DNA<sub>2</sub>$ sequences suggest unexpected phylogenetic position of Corso-Sardinian grass snakes (<i>Natrix cetti</i>) and <b>do not</b> support their <span style=\"small-caps\">species status</span>, with notes on phylogeography and subspecies delineation of grass snakes.",
-				"publicationTitle": "Actes du <sup>ème</sup>$ Congrès Français d'Acoustique",
 				"date": "2012",
+				"DOI": "10.1007/s13127-011-0069-8",
+				"itemID": "Frit2",
+				"pages": "71-80",
+				"publicationTitle": "Actes du <sup>ème</sup>$ Congrès Français d'Acoustique",
 				"volume": "12",
-				"pages": "71-80"
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -3098,6 +3177,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "book",
+				"title": "Public Service Research Foundation",
 				"creators": [
 					{
 						"firstName": "American Rights at",
@@ -3105,14 +3185,13 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
+				"date": "2012",
 				"itemID": "american_rights_at_work_public_2012",
 				"url": "http://www.americanrightsatwork.org/blogcategory-275/",
-				"title": "Public Service Research Foundation",
-				"date": "2012"
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -3122,10 +3201,9 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "journalArticle",
+				"title": "Zotero: single attachment",
 				"creators": [],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
+				"itemID": "zoteroFilePath1",
 				"attachments": [
 					{
 						"title": "Test",
@@ -3133,15 +3211,15 @@ var testCases = [
 						"mimeType": "application/pdf"
 					}
 				],
-				"itemID": "zoteroFilePath1",
-				"title": "Zotero: single attachment"
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			},
 			{
 				"itemType": "journalArticle",
+				"title": "Zotero: multiple attachments",
 				"creators": [],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
+				"itemID": "zoteroFilePaths2",
 				"attachments": [
 					{
 						"title": "Test1",
@@ -3154,25 +3232,25 @@ var testCases = [
 						"mimeType": "application/pdf"
 					}
 				],
-				"itemID": "zoteroFilePaths2",
-				"title": "Zotero: multiple attachments"
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			},
 			{
 				"itemType": "journalArticle",
+				"title": "Zotero: linked attachments (old)",
 				"creators": [],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
 				"itemID": "zoteroFilePaths3",
-				"title": "Zotero: linked attachments (old)"
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			},
 			{
 				"itemType": "journalArticle",
+				"title": "Zotero: linked attachments",
 				"creators": [],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
+				"itemID": "zoteroFilePaths4",
 				"attachments": [
 					{
 						"title": "Test",
@@ -3180,15 +3258,16 @@ var testCases = [
 						"mimeType": "application/pdf"
 					}
 				],
-				"itemID": "zoteroFilePaths4",
-				"title": "Zotero: linked attachments"
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			},
 			{
 				"itemType": "journalArticle",
+				"title": "Mendeley: single attachment",
 				"creators": [],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
+				"itemID": "mendeleyFilePaths1",
+				"url": "https://forums.zotero.org/discussion/28347/unable-to-get-pdfs-stored-on-computer-into-zotero-standalone/",
 				"attachments": [
 					{
 						"title": "Attachment",
@@ -3196,16 +3275,15 @@ var testCases = [
 						"mimeType": "application/pdf"
 					}
 				],
-				"itemID": "mendeleyFilePaths1",
-				"url": "https://forums.zotero.org/discussion/28347/unable-to-get-pdfs-stored-on-computer-into-zotero-standalone/",
-				"title": "Mendeley: single attachment"
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			},
 			{
 				"itemType": "journalArticle",
+				"title": "Mendeley: escaped characters",
 				"creators": [],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
+				"itemID": "mendeleyFilePaths2",
 				"attachments": [
 					{
 						"title": "Attachment",
@@ -3213,15 +3291,16 @@ var testCases = [
 						"mimeType": "application/pdf"
 					}
 				],
-				"itemID": "mendeleyFilePaths2",
-				"title": "Mendeley: escaped characters"
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			},
 			{
 				"itemType": "journalArticle",
+				"title": "Citavi: single attachment",
 				"creators": [],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
+				"itemID": "citaviFilePaths1",
+				"url": "https://forums.zotero.org/discussion/35909/bibtex-import-from-citavi-including-pdf-attachments/",
 				"attachments": [
 					{
 						"title": "Test",
@@ -3229,9 +3308,9 @@ var testCases = [
 						"mimeType": "application/pdf"
 					}
 				],
-				"itemID": "citaviFilePaths1",
-				"url": "https://forums.zotero.org/discussion/35909/bibtex-import-from-citavi-including-pdf-attachments/",
-				"title": "Citavi: single attachment"
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -3241,13 +3320,13 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "journalArticle",
+				"title": "extbackslash extbackslash{}: {",
 				"creators": [],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
 				"itemID": "BibTeXEscapeTest1",
-				"title": "extbackslash extbackslash{}: {"
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
@@ -3257,6 +3336,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "journalArticle",
+				"title": "Increasing cardiopulmonary resuscitation provision in communities with low bystander cardiopulmonary resuscitation rates: a science advisory from the American Heart Association for healthcare providers, policymakers, public health departments, and community leaders",
 				"creators": [
 					{
 						"firstName": "Comilla",
@@ -3359,7 +3439,18 @@ var testCases = [
 						"fieldMode": 1
 					}
 				],
-				"notes": [],
+				"date": "March 2013",
+				"DOI": "10.1161/CIR.0b013e318288b4dd",
+				"ISSN": "1524-4539",
+				"extra": "PMID: 23439512",
+				"issue": "12",
+				"itemID": "sasson_increasing_2013",
+				"language": "eng",
+				"pages": "1342–1350",
+				"publicationTitle": "Circulation",
+				"shortTitle": "Increasing cardiopulmonary resuscitation provision in communities with low bystander cardiopulmonary resuscitation rates",
+				"volume": "127",
+				"attachments": [],
 				"tags": [
 					"Administrative Personnel",
 					"American Heart Association",
@@ -3372,29 +3463,18 @@ var testCases = [
 					"Public Health",
 					"United States"
 				],
-				"seeAlso": [],
-				"attachments": [],
-				"itemID": "sasson_increasing_2013",
-				"ISSN": "1524-4539",
-				"shortTitle": "Increasing cardiopulmonary resuscitation provision in communities with low bystander cardiopulmonary resuscitation rates",
-				"DOI": "10.1161/CIR.0b013e318288b4dd",
-				"language": "eng",
-				"issue": "12",
-				"extra": "PMID: 23439512",
-				"title": "Increasing cardiopulmonary resuscitation provision in communities with low bystander cardiopulmonary resuscitation rates: a science advisory from the American Heart Association for healthcare providers, policymakers, public health departments, and community leaders",
-				"volume": "127",
-				"publicationTitle": "Circulation",
-				"date": "March 2013",
-				"pages": "1342–1350"
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	},
 	{
 		"type": "import",
-		"input": "@article{smith_testing_????,\n    title = {Testing identifier import},\n\tauthor = {Smith, John},\n\tlccn = {L123456},\n\tmrnumber = {MR123456},\n\tzmnumber = {ZM123456},\n\tpmid = {P123456},\n\tpmcid = {PMC123456},\n\teprinttype = {arxiv},\n\teprint = {AX123456}\n}",
+		"input": "@article{smith_testing_????,\n    title = {Testing identifier import},\n\tauthor = {Smith, John},\n\tdoi = {10.12345/123456},\n\tlccn = {L123456},\n\tmrnumber = {MR123456},\n\tzmnumber = {ZM123456},\n\tpmid = {P123456},\n\tpmcid = {PMC123456},\n\teprinttype = {arxiv},\n\teprint = {AX123456}\n}",
 		"items": [
 			{
 				"itemType": "journalArticle",
+				"title": "Testing identifier import",
 				"creators": [
 					{
 						"firstName": "John",
@@ -3402,13 +3482,36 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"notes": [],
-				"tags": [],
-				"seeAlso": [],
-				"attachments": [],
-				"itemID": "smith_testing_????",
+				"DOI": "10.12345/123456",
 				"extra": "LCCN: L123456\nMR: MR123456\nZbl: ZM123456\nPMID: P123456\nPMCID: PMC123456\narXiv: AX123456",
-				"title": "Testing identifier import"
+				"itemID": "smith_testing_????",
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
+			}
+		]
+	},
+	{
+		"type": "import",
+		"input": "@inbook{smith_testing_????,\n    title = {Testing identifier import chapter},\n\tauthor = {Smith, John},\n\tdoi = {10.12345/123456},\n\tlccn = {L123456},\n\tmrnumber = {MR123456},\n\tzmnumber = {ZM123456},\n\tpmid = {P123456},\n\tpmcid = {PMC123456},\n\teprinttype = {arxiv},\n\teprint = {AX123456}\n}",
+		"items": [
+			{
+				"itemType": "bookSection",
+				"title": "Testing identifier import chapter",
+				"creators": [
+					{
+						"firstName": "John",
+						"lastName": "Smith",
+						"creatorType": "author"
+					}
+				],
+				"extra": "DOI: 10.12345/123456\nLCCN: L123456\nMR: MR123456\nZbl: ZM123456\nPMID: P123456\nPMCID: PMC123456\narXiv: AX123456",
+				"itemID": "smith_testing_????",
+				"attachments": [],
+				"tags": [],
+				"notes": [],
+				"seeAlso": []
 			}
 		]
 	}
