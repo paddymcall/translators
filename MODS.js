@@ -656,7 +656,8 @@ function processTitle(contextElement) {
 	// Try to find a titleInfo element with no type specified and a title element as a
 	// child
     var titleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='uniform' or not(@type)][m:title]", xns);
-    var trlTitleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='translated'][m:title]", xns);
+    var trlTitleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='translated'][not(@lang='eng')][m:title]", xns);
+    var engTitleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='translated'][@lang='eng'][m:title]", xns);
     var altTitleElements = ZU.xpath(contextElement, "./m:titleInfo[ @type='alternative'][m:title]", xns);
     var completeTitle = "";
     if(titleElements.length) {
@@ -664,18 +665,27 @@ function processTitle(contextElement) {
     };
     // Zotero.debug("CompleteTitle is now: " + completeTitle);
     if(trlTitleElements.length) {
-	if (completeTitle.length > 0) {
-	    completeTitle = completeTitle + " ["
+	if (titleElements.length > 0) {
+	    completeTitle = completeTitle + " [";
 	};
 	completeTitle = completeTitle + processTitleInfo(trlTitleElements);
 	// Zotero.debug("CompleteTitle with trlTitle: " + completeTitle);
-	if (completeTitle.length > 0) {
-	    completeTitle = completeTitle + "]"
+	if (titleElements.length > 0) {
+	    completeTitle = completeTitle + "]";
 	};
     };
+
+    if(engTitleElements.length) {
+	completeTitle = completeTitle
+	    + (completeTitle.length > 0 ? " [*": "") 
+	    + processTitleInfo(engTitleElements)
+	    + (completeTitle.length > 0 ? "]": "");
+	
+    };
+    
     if(altTitleElements.length) {
 	if (completeTitle.length > 0) {
-	    completeTitle = completeTitle + " / "
+	    completeTitle = completeTitle + " / ";
 	};
 	completeTitle = completeTitle + processTitleInfo(altTitleElements);
     };
