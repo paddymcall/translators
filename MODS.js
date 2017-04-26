@@ -653,11 +653,14 @@ function processTitleInfo(titleInfo) {
 }
 
 function processTitle(contextElement) {
-	// Try to find a titleInfo element with no type specified and a title element as a
-	// child
+    // Try to find a titleInfo element with no type specified and a title element as a
+    // child
     var titleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='uniform' or not(@type)][m:title]", xns);
+    // non-English parts, but translated
     var trlTitleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='translated'][not(@lang='eng')][m:title]", xns);
+    //English titles, and translated
     var engTitleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='translated'][@lang='eng'][m:title]", xns);
+    // alternative title elements
     var altTitleElements = ZU.xpath(contextElement, "./m:titleInfo[ @type='alternative'][m:title]", xns);
     var completeTitle = "";
     if(titleElements.length) {
@@ -665,14 +668,10 @@ function processTitle(contextElement) {
     };
     // Zotero.debug("CompleteTitle is now: " + completeTitle);
     if(trlTitleElements.length) {
-	if (titleElements.length > 0) {
-	    completeTitle = completeTitle + " [";
-	};
-	completeTitle = completeTitle + processTitleInfo(trlTitleElements);
-	// Zotero.debug("CompleteTitle with trlTitle: " + completeTitle);
-	if (titleElements.length > 0) {
-	    completeTitle = completeTitle + "]";
-	};
+	completeTitle = completeTitle
+	    + (completeTitle.length > 0 ? " [": "")
+	    + processTitleInfo(trlTitleElements)
+	    + (completeTitle.length > 0 ? "]": "");
     };
 
     if(engTitleElements.length) {
@@ -684,19 +683,19 @@ function processTitle(contextElement) {
     };
     
     if(altTitleElements.length) {
-	if (completeTitle.length > 0) {
-	    completeTitle = completeTitle + " / ";
-	};
-	completeTitle = completeTitle + processTitleInfo(altTitleElements);
+	    completeTitle = completeTitle
+	    + (completeTitle.length > 0 ? " / ": "")
+	    + processTitleInfo(altTitleElements);
     };
+    
     if (completeTitle.length > 0) return completeTitle;
 
-	// That failed, so look for any titleInfo element without no type secified
-	var title = ZU.xpathText(contextElement, "./m:titleInfo[not(@type)][1]", xns);
-	if(title) return title;
+    // That failed, so look for any titleInfo element without no type secified
+    var title = ZU.xpathText(contextElement, "./m:titleInfo[not(@type)][1]", xns);
+    if(title) return title;
 	
-	// That failed, so just go for the first title
-	return ZU.xpathText(contextElement, "./m:titleInfo[1]", xns);
+    // That failed, so just go for the first title
+    return ZU.xpathText(contextElement, "./m:titleInfo[1]", xns);
 }
 
 function processGenre(contextElement) {
