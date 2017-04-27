@@ -123,9 +123,7 @@ var fromMarcGenre = {
 	"motion picture":"film",
 	"art original":"artwork",
 	"web site":"webpage",
-	"yearbook":"book",
-	"canonical scripture": "manuscript",
-	"chapter":"bookSection",
+	"yearbook":"book"
 };
 
 var toMarcGenre = {
@@ -333,12 +331,12 @@ function doExport() {
 		// Don't export notes or standalone attachments
 		if(item.itemType === "note" || item.itemType === "attachment") continue;
 		
-	    var mods = doc.createElementNS(ns, "mods");
-	    var isPartialItem = partialItemTypes.indexOf(item.itemType) !== -1;
-	    var recordInfo = doc.createElementNS(ns, "recordInfo");
-	    var host = doc.createElementNS(ns, "relatedItem");
-	    var series = doc.createElementNS(ns, "relatedItem");
-	    var topOrHost = (isPartialItem ? host : mods);
+		var mods = doc.createElementNS(ns, "mods"),
+			isPartialItem = partialItemTypes.indexOf(item.itemType) !== -1,
+			recordInfo = doc.createElementNS(ns, "recordInfo"),
+			host = doc.createElementNS(ns, "relatedItem"),
+			series = doc.createElementNS(ns, "relatedItem"),
+			topOrHost = (isPartialItem ? host : mods);
 		
 		/** CORE FIELDS **/
 		
@@ -625,120 +623,61 @@ function doExport() {
 }
 
 function processTitleInfo(titleInfo) {
-    var completeTitle = '';
-    var title = '';
-    var subtitle = '';
-    var nonSort = '';
-    var partNumber = '';
-    Zotero.debug("TitleInfo length is: " + titleInfo.length);
-    for (var i=0; i < titleInfo.length; i++) {
-	Zotero.debug("TitleInfo round: " + i);
-	if (i > 0) title = " // ";
-	title = title + ZU.xpathText(titleInfo[i], "m:title", xns).trim();
-	subtitle = ZU.xpathText(titleInfo[i], "m:subTitle[1]", xns);
-	partNumber = ZU.xpathText(titleInfo[i], "m:partNumber[1]", xns);
+	var title = ZU.xpathText(titleInfo, "m:title[1]", xns).trim();
+	var subtitle = ZU.xpathText(titleInfo, "m:subTitle[1]", xns);
 	if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
-	nonSort = ZU.xpathText(titleInfo[i], "m:nonSort[1]", xns);
+	var nonSort = ZU.xpathText(titleInfo, "m:nonSort[1]", xns);
 	if(nonSort) title = nonSort.trim() + " " + title;
-	if(partNumber) title = title + " " + partNumber;
-	// if(i == 1) title = " (" + title;
-	if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
-	// if(i >= 1 && i == titleInfo.length - 1) title = title + ") ";
-	completeTitle += title;
-	title = '';
-	Zotero.debug("Currrent title is now: " + title);
-	Zotero.debug("CompleteTitle is now: " + completeTitle);
-    }
-    return completeTitle.trim();
+	return title;
 }
 
 function processTitle(contextElement) {
-    // Try to find a titleInfo element with no type specified and a title element as a
-    // child
-    var titleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='uniform' or not(@type)][m:title]", xns);
-    // non-English parts, but translated
-    var trlTitleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='translated'][not(@lang='eng')][m:title]", xns);
-    //English titles, and translated
-    var engTitleElements = ZU.xpath(contextElement, "./m:titleInfo[@type='translated'][@lang='eng'][m:title]", xns);
-    // alternative title elements
-    var altTitleElements = ZU.xpath(contextElement, "./m:titleInfo[ @type='alternative'][m:title]", xns);
-    var completeTitle = "";
-    if(titleElements.length) {
-	completeTitle = processTitleInfo(titleElements);
-    };
-    // Zotero.debug("CompleteTitle is now: " + completeTitle);
-    if(trlTitleElements.length) {
-	completeTitle = completeTitle
-	    + (completeTitle.length > 0 ? " [": "")
-	    + processTitleInfo(trlTitleElements)
-	    + (completeTitle.length > 0 ? "]": "");
-    };
-
-    if(engTitleElements.length) {
-	completeTitle = completeTitle
-	    + (completeTitle.length > 0 ? " [*": "") 
-	    + processTitleInfo(engTitleElements)
-	    + (completeTitle.length > 0 ? "]": "");
+	// Try to find a titleInfo element with no type specified and a title element as a
+	// child
+	var titleElements = ZU.xpath(contextElement, "m:titleInfo[not(@type)][m:title][1]", xns);
+	if(titleElements.length) return processTitleInfo(titleElements[0]);
 	
-    };
-    
-    if(altTitleElements.length) {
-	    completeTitle = completeTitle
-	    + (completeTitle.length > 0 ? " / ": "")
-	    + processTitleInfo(altTitleElements);
-    };
-    
-    if (completeTitle.length > 0) return completeTitle;
-
-    // That failed, so look for any titleInfo element without no type secified
-    var title = ZU.xpathText(contextElement, "./m:titleInfo[not(@type)][1]", xns);
-    if(title) return title;
+	// That failed, so look for any titleInfo element without no type secified
+	var title = ZU.xpathText(contextElement, "m:titleInfo[not(@type)][1]", xns);
+	if(title) return title;
 	
-    // That failed, so just go for the first title
-    return ZU.xpathText(contextElement, "./m:titleInfo[1]", xns);
+	// That failed, so just go for the first title
+	return ZU.xpathText(contextElement, "m:titleInfo[1]", xns);
 }
 
 function processGenre(contextElement) {
-    // Zotero.debug("Processing Genre");
 	// Try to get itemType by treating local genre as Zotero item type
 	var genre = ZU.xpath(contextElement, 'm:genre[@authority="local"]', xns);
 	for(var i=0; i<genre.length; i++) {
-	    var genreStr = genre[i].textContent;
-	    // Zotero.debug("Local genre: " + genreStr);
-	    if(Zotero.Utilities.itemTypeExists(genreStr)) return genreStr;
+		var genreStr = genre[i].textContent;
+		if(Zotero.Utilities.itemTypeExists(genreStr)) return genreStr;
 	}
 	
 	// Try to get MARC genre and convert to an item type
 	genre = ZU.xpath(contextElement, 'm:genre[@authority="marcgt"] | m:genre[@authority="marc"]', xns);
-    for(var i=0; i<genre.length; i++) {
-	var genreStr = genre[i].textContent;
-	// Zotero.debug("MARC genre: " + genreStr);
-	if(fromMarcGenre[genreStr]) {
-	    return fromMarcGenre[genreStr]
-xxx				    };
-    }
+	for(var i=0; i<genre.length; i++) {
+		var genreStr = genre[i].textContent;
+		if(fromMarcGenre[genreStr]) return fromMarcGenre[genreStr];
+	}
 	
 	// Try to get DCT genre and convert to an item type
 	genre = ZU.xpath(contextElement, 'm:genre[@authority="dct"]', xns);
-    for(var i=0; i<genre.length; i++) {
-	// Zotero.debug("DCT genre: " + genreStr);
+	for(var i=0; i<genre.length; i++) {
 		var genreStr = genre[i].textContent.replace(/\s+/g, "");
 		if(dctGenres[genreStr]) return dctGenres[genreStr];
 	}
 	
 	// Try unlabeled genres
 	genre = ZU.xpath(contextElement, 'm:genre', xns);
-
-    for(var i=0; i<genre.length; i++) {
-	// Zotero.debug("WEIRD genre: " + genreStr);
+	for(var i=0; i<genre.length; i++) {
 		var genreStr = genre[i].textContent;
-
+		
 		// Zotero
 		if(Zotero.Utilities.itemTypeExists(genreStr)) return genreStr;
-	    // Zotero.debug("Processing genre: " + genreStr + " to Marc: " + fromMarcGenre[genreStr]);		
+		
 		// MARC
 		if(fromMarcGenre[genreStr]) return fromMarcGenre[genreStr];
-		    
+		
 		// DCT
 		var dctGenreStr = genreStr.replace(/\s+/g, "");
 		if(dctGenres[dctGenreStr]) return dctGenres[dctGenreStr];
@@ -753,8 +692,7 @@ xxx				    };
 }
 
 function processItemType(contextElement) {
-    var type = processGenre(contextElement);
-    // Zotero.debug("Genre sofar: " + type);
+	var type = processGenre(contextElement);
 	if(type) return type;
 	
 	// Try to get type information from typeOfResource
@@ -799,7 +737,7 @@ function processItemType(contextElement) {
 
 	// As a last resort, if it has a host, let's set it to book chapter, so we can import
 	// more info. Otherwise default to document
-    if(hosts.length) {
+	if(hosts.length) {
 		if(periodical) return 'journalArticle';
 		return 'bookSection';
 	}
@@ -857,18 +795,11 @@ function processCreator(name, itemType, defaultCreatorType) {
 }
 
 function processCreators(contextElement, newItem, defaultCreatorType) {
-    // make this genre aware --- pma
-    var genre = processGenre(contextElement);
-    // // Zotero.debug("Genre as seen from creators: " + genre);
-    if (genre === 'manuscript') {
-	var names = ZU.xpath(contextElement, 'm:name[not(ancestor::m:relatedItem)]', xns);
-    } else {
 	var names = ZU.xpath(contextElement, 'm:name', xns);
-    }
-    for(var i=0; i<names.length; i++) {
-	var creator = processCreator(names[i], newItem.itemType, defaultCreatorType);
-	if(creator) newItem.creators.push(creator);
-    }
+	for(var i=0; i<names.length; i++) {
+		var creator = processCreator(names[i], newItem.itemType, defaultCreatorType);
+		if(creator) newItem.creators.push(creator);
+	}
 }
 
 function processExtent(extent, newItem) {
@@ -1031,38 +962,19 @@ function doImport() {
 			iModsElements<nModsElements; iModsElements++) {
 		var modsElement = modsElements[iModsElements],
 			newItem = new Zotero.Item();
-	       var genreElement = ZU.xpath(modsElement, "./m:genre", xns);
-	    var genre = 'journalArticle';
-	    var hostGenre = '';
-		if (genreElement.length) {
-		    // Zotero.debug("Found a genre: " + genreElement[0].textContent);
-		    // fix for book sections
-		    genre = genreElement[0].textContent;
-		    if (genre == 'article') {
-			hostGenres = ZU.xpath(modsElement, "./m:relatedItem[@type='host']/m:genre", xns);
-			for (var iHostGenres=0; iHostGenres < hostGenres.length; iHostGenres++) {
-			    hostGenre = hostGenres[iHostGenres].textContent.toLowerCase();
-			    if (hostGenre == 'festschrift' || hostGenre == 'book' || hostGenre == 'editedvolume') {
-				genre = 'bookSection';
-			    }
-			}
-		    }
-		}
-		// Zotero.debug("The genre is now: " + genre);
+		
 		// title
-	    newItem.title = processTitle(modsElement);
-	    // Zotero.debug("The title is now: " + newItem.title);
+		newItem.title = processTitle(modsElement);
 		
 		// shortTitle
 		var abbreviatedTitle = ZU.xpath(modsElement, 'm:titleInfo[@type="abbreviated"]', xns);
 		if(abbreviatedTitle.length) {
-		    newItem.shortTitle = processTitleInfo(abbreviatedTitle[0]);
-		    // Zotero.debug("The shorttitle is now: " + newItem.shortTitle);
+			newItem.shortTitle = processTitleInfo(abbreviatedTitle[0]);
 		}
-
+		
 		// itemType
 		newItem.itemType = processItemType(modsElement);
-       	        // Zotero.debug("Item type is: " + newItem.itemType);
+		
 		var isPartialItem = partialItemTypes.indexOf(newItem.itemType) !== -1;
 		
 		// TODO: thesisType, type
@@ -1081,97 +993,29 @@ function doImport() {
 		var part = [], originInfo = [];
 		
 		// host
-		var hostNodes = ZU.xpath(modsElement, './m:relatedItem[@type="host"]', xns)
-	        // Zotero.debug("hosts found: " + hostNodes.length);
+		var hostNodes = ZU.xpath(modsElement, 'm:relatedItem[@type="host"]', xns)
 		for(var i=0; i<hostNodes.length; i++) {
 			var host = hostNodes[i];
-		        if (genre === "canonical scripture") {
-			    // Zotero.debug("Canonical scripture!");
-			    var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
-			    // Zotero.debug("EAST Canon number (=part): " + eastCanonNumber);
-			    var eastCanonVolumeNodes = ZU.xpath(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
-			    // Zotero.debug("EAST Canon volume nodes: found " + eastCanonVolumeNodes.length);
-			    var eastCanonVolume = ZU.xpathText(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
-			    // Zotero.debug("EAST Canon volume: " + eastCanonVolume);
-			    // var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
-			    var eastCanonExtentStart = ZU.xpathText(host, 'm:part/m:extent/m:start', xns);
-			    // Zotero.debug("EAST Canon extent start: " + eastCanonExtentStart);
-			    var eastCanonExtentEnd = ZU.xpathText(host, 'm:part/m:extent/m:end', xns);
-			    // Zotero.debug("EAST Canon extent end: " + eastCanonExtentEnd);
-			    var eastCanonAbbrevTitle = ZU.xpathText(host, 'm:titleInfo[@type="abbreviated"]/m:title', xns);
-			    // Zotero.debug("EAST Canon abbrev title: " + eastCanonAbbrevTitle);
-			    var eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo[not(@type)]/m:title', xns);
-			    // Zotero.debug("EAST Canon full title: " + eastCanonFullTitle);
-			    if (!eastCanonFullTitle || !eastCanonFullTitle.length) {
-				eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo/m:title', xns);
-			    }
-			    var eastCanonSubTitle = ZU.xpathText(host, 'm:titleInfo/m:subTitle', xns);
-			    // Zotero.debug("EAST Canon Subtitle: " + eastCanonSubTitle);
-			    var eastCanonRef = "";
-			    
-
-
-			    
-			    if (eastCanonAbbrevTitle && eastCanonAbbrevTitle.length) {
-				eastCanonRef = eastCanonAbbrevTitle;
-			    } else {
-				eastCanonRef = eastCanonFullTitle;
-				if (eastCanonSubTitle && eastCanonSubTitle.length) {
-			    	    eastCanonRef = eastCanonRef + " (" + eastCanonSubTitle + ")";
-				}
-			    }
-			    
-			    if (eastCanonNumber && eastCanonNumber.length) {
-				eastCanonRef = eastCanonRef.trim() + " " + eastCanonNumber;
-			    }
-			    eastCanonRef = eastCanonRef + " ";
-			    // check if we have more than one canon volume node (meaning this item stretches across volumes)
-			    for(var otherI=0; otherI<eastCanonVolumeNodes.length; otherI++) {
-				// append the volume
-				if (eastCanonVolume && eastCanonVolume.length) {
-				    eastCanonRef = eastCanonRef + eastCanonVolumeNodes[otherI].textContent;
-				}
-				// append the start and the en dash
-				if (otherI == 0) {
-				if (eastCanonExtentStart && eastCanonExtentStart.length) {
-				    eastCanonRef = eastCanonRef + " " + eastCanonExtentStart + "–";
-				}}
-				else {
-				    eastCanonRef = eastCanonRef + " ";
-				}
-			    }
-			    eastCanonRef = eastCanonRef + eastCanonExtentEnd;
-
-			    // Zotero.debug("Canon reference: " + eastCanonRef);
-			    // put the canonTitle into the series or seriesTitle field
-			    if(ZU.fieldIsValidForType('series', newItem.itemType)) {
-				newItem.series = newItem.series ? newItem.series + "; " + eastCanonRef : eastCanonRef;
-			    } else if(ZU.fieldIsValidForType('seriesTitle', newItem.itemType)) {
-				newItem.seriesTitle = newItem.seriesTitle ? newItem.seriesTitle + "; " + eastCanonRef : eastCanonRef;
-			    }
-
-			} else { // the standard behaviour goes here
-			    // publicationTitle
-			    if(!newItem.publicationTitle) newItem.publicationTitle = processTitle(host);
-			    // Zotero.debug("publicationTitle: " + newItem.publicationTitle);
-			    // journalAbbreviation
-			    if(!newItem.journalAbbreviation) {
+			
+			// publicationTitle
+			if(!newItem.publicationTitle) newItem.publicationTitle = processTitle(host);
+			
+			// journalAbbreviation
+			if(!newItem.journalAbbreviation) {
 				var titleInfo = ZU.xpath(host, 'm:titleInfo[@type="abbreviated"]', xns);
 				if(titleInfo.length) {
-				    newItem.journalAbbreviation = processTitleInfo(titleInfo[0]);
+					newItem.journalAbbreviation = processTitleInfo(titleInfo[0]);
 				}
-			    }
-			    
-			    // creators (might be editors)
-			    processCreators(host, newItem, "editor");
-			    
-			    // identifiers
-			    processIdentifiers(host, newItem);
-			    
-			    part = part.concat(ZU.xpath(host, 'm:part', xns));
-			    // Zotero.debug("Setting part: " + part);
-			    originInfo = originInfo.concat(ZU.xpath(host, 'm:originInfo', xns));
 			}
+			
+			// creators (might be editors)
+			processCreators(host, newItem, "editor");
+			
+			// identifiers
+			processIdentifiers(host, newItem);
+			
+			part = part.concat(ZU.xpath(host, 'm:part', xns));
+			originInfo = originInfo.concat(ZU.xpath(host, 'm:originInfo', xns));
 		}
 		
 		if(!newItem.publicationTitle) newItem.publicationTitle = newItem.journalAbbreviation;		
@@ -1209,7 +1053,7 @@ function doImport() {
 			var details = ["volume", "issue", "section"];
 			for(var i=0; i<details.length; i++) {
 				var detail = details[i];
-				// Zotero.debug("Processing details for: " + detail);
+				
 				newItem[detail] = getFirstResult(part, ['m:detail[@type="'+detail+'"]/m:number',
 					'm:detail[@type="'+detail+'"]']);
 			}
@@ -1237,10 +1081,9 @@ function doImport() {
 					processExtent(extent.textContent, newItem);
 				}
 			}
-
+			
 			newItem.date = getFirstResult(part, ['m:date[not(@point="end")][@encoding]',
-							     'm:date[not(@point="end")]', 'm:date']);
-		    // // Zotero.debug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date in part: " + newItem.date);
+				'm:date[not(@point="end")]', 'm:date']);
 		}
 
 		// physical description
@@ -1270,18 +1113,12 @@ function doImport() {
 				}
 			}
 			
-		    // date
-		    if (!newItem.date) {
+			// date
 			newItem.date = getFirstResult(originInfo, ['m:copyrightDate[@encoding]',
-								   'm:copyrightDate',
-								   'm:dateIssued[not(@point="end")][@encoding]',
-								   'm:dateIssued[not(@point="end")]',
-								   'm:dateIssued',
-								   'm:dateCreated[@encoding]',
-								   'm:dateCreated']) || newItem.date;
-			// // Zotero.debug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date: " + newItem.date);
-		    }
-
+				'm:copyrightDate', 'm:dateIssued[not(@point="end")][@encoding]',
+				'm:dateIssued[not(@point="end")]', 'm:dateIssued',
+				'm:dateCreated[@encoding]',	'm:dateCreated']) || newItem.date;
+			
 			// lastModified
 			newItem.lastModified = getFirstResult(originInfo, ['m:dateModified[@encoding]',
 				'm:dateModified']);
@@ -1333,8 +1170,6 @@ function doImport() {
 				(note.hasAttribute("type") ? note.getAttribute("type") + ': ':'') +
 				note.textContent
 			});
-		    // to keep the notes in the actual item (as extra):
-		    newItem.extra = ZU.xpathText(modsElement, 'm:note', xns, "\n\n");
 		}
 
 		// ToC - goes into notes
