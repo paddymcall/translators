@@ -633,31 +633,35 @@ function doExport() {
 }
 
 function processTitleInfo(titleInfo) {
-    var completeTitle = '';
-    var title = '';
-    var subtitle = '';
-    var nonSort = '';
-    var partNumber = '';
-    eastDebug("TitleInfo length is: " + titleInfo.length);
-    for (var i=0; i < titleInfo.length; i++) {
-	eastDebug("TitleInfo round: " + i);
-	if (i > 0) title = " // ";
-	title = title + ZU.xpathText(titleInfo[i], "m:title", xns).trim();
-	subtitle = ZU.xpathText(titleInfo[i], "m:subTitle[1]", xns);
-	partNumber = ZU.xpathText(titleInfo[i], "m:partNumber[1]", xns);
-	if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
-	nonSort = ZU.xpathText(titleInfo[i], "m:nonSort[1]", xns);
-	if(nonSort) title = nonSort.trim() + " " + title;
-	if(partNumber) title = title + " " + partNumber;
-	// if(i == 1) title = " (" + title;
-	if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
-	// if(i >= 1 && i == titleInfo.length - 1) title = title + ") ";
-	completeTitle += title;
-	title = '';
-	eastDebug("Currrent title is now: " + title);
-	eastDebug("CompleteTitle is now: " + completeTitle);
-    }
-    return completeTitle.trim();
+	// check for length: stays backward compatible with MODS.js like this
+	if (!titleInfo.length) {
+		titleInfo = [ titleInfo ];
+	}
+	var completeTitle = '';
+	var title = '';
+	var subtitle = '';
+	var nonSort = '';
+	var partNumber = '';
+	for (var i=0; i < titleInfo.length; i++) {
+		eastDebug("TitleInfo round: " + i);
+		if (i > 0) title = " // ";
+		title = title + ZU.xpathText(titleInfo[i], "m:title", xns).trim();
+		subtitle = ZU.xpathText(titleInfo[i], "m:subTitle[1]", xns);
+		partNumber = ZU.xpathText(titleInfo[i], "m:partNumber[1]", xns);
+		if(subtitle) title = title.replace(/:$/,'') + ": "+ subtitle.trim();
+		nonSort = ZU.xpathText(titleInfo[i], "m:nonSort[1]", xns);
+		if(nonSort) title = nonSort.trim() + " " + title;
+		if(partNumber) title = title + " " + partNumber;
+		// if(i == 1) title = " (" + title;
+		if(i > 0 && i < titleInfo.length - 1) title = title + "; ";
+		// if(i >= 1 && i == titleInfo.length - 1) title = title + ") ";
+		completeTitle += title;
+		title = '';
+		eastDebug("Currrent title is now: " + title);
+		eastDebug("CompleteTitle is now: " + completeTitle);
+	}
+	eastDebug("And the result is: " + completeTitle);
+	return completeTitle.trim();
 }
 
 function processTitle(contextElement) {
@@ -701,11 +705,11 @@ function processTitle(contextElement) {
 	if (completeTitle.length > 0) return completeTitle;
 
 	// That failed, so look for any titleInfo element without no type secified
-	var title = ZU.xpathText(contextElement, "./m:titleInfo[not(@type)][1]", xns);
+	var title = ZU.xpathText(contextElement, "m:titleInfo[not(@type)][1]", xns);
 	if(title) return title;
 	
 	// That failed, so just go for the first title
-	return ZU.xpathText(contextElement, "./m:titleInfo[1]", xns);
+	return ZU.xpathText(contextElement, "m:titleInfo[1]", xns);
 }
 
 function processGenre(contextElement) {
@@ -1036,36 +1040,36 @@ function doImport() {
 	var modsElements = ZU.xpath(xml, "/m:mods | /m:modsCollection/m:mods", xns);
 	
 	for(var iModsElements=0, nModsElements=modsElements.length;
-			iModsElements<nModsElements; iModsElements++) {
+	    iModsElements<nModsElements; iModsElements++) {
 		var modsElement = modsElements[iModsElements],
-			newItem = new Zotero.Item();
-	       var genreElement = ZU.xpath(modsElement, "./m:genre", xns);
-	    var genre = 'journalArticle';
-	    var hostGenre = '';
+		newItem = new Zotero.Item();
+		var genreElement = ZU.xpath(modsElement, "./m:genre", xns);
+		var genre = 'journalArticle';
+		var hostGenre = '';
 		if (genreElement.length) {
-		    // eastDebug("Found a genre: " + genreElement[0].textContent);
-		    // fix for book sections
-		    genre = genreElement[0].textContent;
-		    if (genre == 'article') {
-			hostGenres = ZU.xpath(modsElement, "./m:relatedItem[@type='host']/m:genre", xns);
-			for (var iHostGenres=0; iHostGenres < hostGenres.length; iHostGenres++) {
-			    hostGenre = hostGenres[iHostGenres].textContent.toLowerCase();
-			    if (hostGenre == 'festschrift' || hostGenre == 'book' || hostGenre == 'editedvolume') {
-				genre = 'bookSection';
-			    }
+			// eastDebug("Found a genre: " + genreElement[0].textContent);
+			// fix for book sections
+			genre = genreElement[0].textContent;
+			if (genre == 'article') {
+				hostGenres = ZU.xpath(modsElement, "./m:relatedItem[@type='host']/m:genre", xns);
+				for (var iHostGenres=0; iHostGenres < hostGenres.length; iHostGenres++) {
+					hostGenre = hostGenres[iHostGenres].textContent.toLowerCase();
+					if (hostGenre == 'festschrift' || hostGenre == 'book' || hostGenre == 'editedvolume') {
+						genre = 'bookSection';
+					}
+				}
 			}
-		    }
 		}
 		// eastDebug("The genre is now: " + genre);
 		// title
-	    newItem.title = processTitle(modsElement);
-	    // eastDebug("The title is now: " + newItem.title);
+		newItem.title = processTitle(modsElement);
+		// eastDebug("The title is now: " + newItem.title);
 		
 		// shortTitle
 		var abbreviatedTitle = ZU.xpath(modsElement, 'm:titleInfo[@type="abbreviated"]', xns);
 		if(abbreviatedTitle.length) {
-		    newItem.shortTitle = processTitleInfo(abbreviatedTitle[0]);
-		    // eastDebug("The shorttitle is now: " + newItem.shortTitle);
+			newItem.shortTitle = processTitleInfo(abbreviatedTitle[0]);
+			// eastDebug("The shorttitle is now: " + newItem.shortTitle);
 		}
 
 		// itemType
@@ -1089,96 +1093,98 @@ function doImport() {
 		var part = [], originInfo = [];
 		
 		// host
-		var hostNodes = ZU.xpath(modsElement, './m:relatedItem[@type="host"]', xns)
+		var hostNodes = ZU.xpath(modsElement, 'm:relatedItem[@type="host"]', xns)
 	        // eastDebug("hosts found: " + hostNodes.length);
 		for(var i=0; i<hostNodes.length; i++) {
 			var host = hostNodes[i];
 		        if (genre === "canonical scripture") {
-			    // eastDebug("Canonical scripture!");
-			    var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
-			    // eastDebug("EAST Canon number (=part): " + eastCanonNumber);
-			    var eastCanonVolumeNodes = ZU.xpath(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
-			    // eastDebug("EAST Canon volume nodes: found " + eastCanonVolumeNodes.length);
-			    var eastCanonVolume = ZU.xpathText(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
-			    // eastDebug("EAST Canon volume: " + eastCanonVolume);
-			    // var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
-			    var eastCanonExtentStart = ZU.xpathText(host, 'm:part/m:extent/m:start', xns);
-			    // eastDebug("EAST Canon extent start: " + eastCanonExtentStart);
-			    var eastCanonExtentEnd = ZU.xpathText(host, 'm:part/m:extent/m:end', xns);
-			    // eastDebug("EAST Canon extent end: " + eastCanonExtentEnd);
-			    var eastCanonAbbrevTitle = ZU.xpathText(host, 'm:titleInfo[@type="abbreviated"]/m:title', xns);
-			    // eastDebug("EAST Canon abbrev title: " + eastCanonAbbrevTitle);
-			    var eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo[not(@type)]/m:title', xns);
-			    // eastDebug("EAST Canon full title: " + eastCanonFullTitle);
-			    if (!eastCanonFullTitle || !eastCanonFullTitle.length) {
-				eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo/m:title', xns);
-			    }
-			    var eastCanonSubTitle = ZU.xpathText(host, 'm:titleInfo/m:subTitle', xns);
-			    // eastDebug("EAST Canon Subtitle: " + eastCanonSubTitle);
-			    var eastCanonRef = "";
-			    
+				// eastDebug("Canonical scripture!");
+				var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
+				// eastDebug("EAST Canon number (=part): " + eastCanonNumber);
+				var eastCanonVolumeNodes = ZU.xpath(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
+				// eastDebug("EAST Canon volume nodes: found " + eastCanonVolumeNodes.length);
+				var eastCanonVolume = ZU.xpathText(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
+				// eastDebug("EAST Canon volume: " + eastCanonVolume);
+				// var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
+				var eastCanonExtentStart = ZU.xpathText(host, 'm:part/m:extent/m:start', xns);
+				// eastDebug("EAST Canon extent start: " + eastCanonExtentStart);
+				var eastCanonExtentEnd = ZU.xpathText(host, 'm:part/m:extent/m:end', xns);
+				// eastDebug("EAST Canon extent end: " + eastCanonExtentEnd);
+				var eastCanonAbbrevTitle = ZU.xpathText(host, 'm:titleInfo[@type="abbreviated"]/m:title', xns);
+				// eastDebug("EAST Canon abbrev title: " + eastCanonAbbrevTitle);
+				var eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo[not(@type)]/m:title', xns);
+				// eastDebug("EAST Canon full title: " + eastCanonFullTitle);
+				if (!eastCanonFullTitle || !eastCanonFullTitle.length) {
+					eastCanonFullTitle = ZU.xpathText(host, 'm:titleInfo/m:title', xns);
+				}
+				var eastCanonSubTitle = ZU.xpathText(host, 'm:titleInfo/m:subTitle', xns);
+				// eastDebug("EAST Canon Subtitle: " + eastCanonSubTitle);
+				var eastCanonRef = "";
+				
 
 
-			    
-			    if (eastCanonAbbrevTitle && eastCanonAbbrevTitle.length) {
-				eastCanonRef = eastCanonAbbrevTitle;
-			    } else {
-				eastCanonRef = eastCanonFullTitle;
-				if (eastCanonSubTitle && eastCanonSubTitle.length) {
-			    	    eastCanonRef = eastCanonRef + " (" + eastCanonSubTitle + ")";
+				
+				if (eastCanonAbbrevTitle && eastCanonAbbrevTitle.length) {
+					eastCanonRef = eastCanonAbbrevTitle;
+				} else {
+					eastCanonRef = eastCanonFullTitle;
+					if (eastCanonSubTitle && eastCanonSubTitle.length) {
+			    			eastCanonRef = eastCanonRef + " (" + eastCanonSubTitle + ")";
+					}
 				}
-			    }
-			    
-			    if (eastCanonNumber && eastCanonNumber.length) {
-				eastCanonRef = eastCanonRef.trim() + " " + eastCanonNumber;
-			    }
-			    eastCanonRef = eastCanonRef + " ";
-			    // check if we have more than one canon volume node (meaning this item stretches across volumes)
-			    for(var otherI=0; otherI<eastCanonVolumeNodes.length; otherI++) {
-				// append the volume
-				if (eastCanonVolume && eastCanonVolume.length) {
-				    eastCanonRef = eastCanonRef + eastCanonVolumeNodes[otherI].textContent;
+				
+				if (eastCanonNumber && eastCanonNumber.length) {
+					eastCanonRef = eastCanonRef.trim() + " " + eastCanonNumber;
 				}
-				// append the start and the en dash
-				if (otherI == 0) {
-				if (eastCanonExtentStart && eastCanonExtentStart.length) {
-				    eastCanonRef = eastCanonRef + " " + eastCanonExtentStart + "–";
-				}}
-				else {
-				    eastCanonRef = eastCanonRef + " ";
+				eastCanonRef = eastCanonRef + " ";
+				// check if we have more than one canon volume node (meaning this item stretches across volumes)
+				for(var otherI=0; otherI<eastCanonVolumeNodes.length; otherI++) {
+					// append the volume
+					if (eastCanonVolume && eastCanonVolume.length) {
+						eastCanonRef = eastCanonRef + eastCanonVolumeNodes[otherI].textContent;
+					}
+					// append the start and the en dash
+					if (otherI == 0) {
+						if (eastCanonExtentStart && eastCanonExtentStart.length) {
+							eastCanonRef = eastCanonRef + " " + eastCanonExtentStart + "–";
+						}}
+					else {
+						eastCanonRef = eastCanonRef + " ";
+					}
 				}
-			    }
-			    eastCanonRef = eastCanonRef + eastCanonExtentEnd;
+				eastCanonRef = eastCanonRef + eastCanonExtentEnd;
 
-			    // eastDebug("Canon reference: " + eastCanonRef);
-			    // put the canonTitle into the series or seriesTitle field
-			    if(ZU.fieldIsValidForType('series', newItem.itemType)) {
-				newItem.series = newItem.series ? newItem.series + "; " + eastCanonRef : eastCanonRef;
-			    } else if(ZU.fieldIsValidForType('seriesTitle', newItem.itemType)) {
-				newItem.seriesTitle = newItem.seriesTitle ? newItem.seriesTitle + "; " + eastCanonRef : eastCanonRef;
-			    }
+				// eastDebug("Canon reference: " + eastCanonRef);
+				// put the canonTitle into the series or seriesTitle field
+				if(ZU.fieldIsValidForType('series', newItem.itemType)) {
+					newItem.series = newItem.series ? newItem.series + "; " + eastCanonRef : eastCanonRef;
+				} else if(ZU.fieldIsValidForType('seriesTitle', newItem.itemType)) {
+					newItem.seriesTitle = newItem.seriesTitle ? newItem.seriesTitle + "; " + eastCanonRef : eastCanonRef;
+				}
 
 			} else { // the standard behaviour goes here
-			    // publicationTitle
-			    if(!newItem.publicationTitle) newItem.publicationTitle = processTitle(host);
-			    // eastDebug("publicationTitle: " + newItem.publicationTitle);
-			    // journalAbbreviation
-			    if(!newItem.journalAbbreviation) {
-				var titleInfo = ZU.xpath(host, 'm:titleInfo[@type="abbreviated"]', xns);
-				if(titleInfo.length) {
-				    newItem.journalAbbreviation = processTitleInfo(titleInfo[0]);
+				// publicationTitle
+				if(!newItem.publicationTitle) newItem.publicationTitle = processTitle(host);
+				// eastDebug("publicationTitle: " + newItem.publicationTitle);
+				// journalAbbreviation
+				if(!newItem.journalAbbreviation) {
+					eastDebug("Setting newItem.journalAbbreviation");
+					var titleInfo = ZU.xpath(host, 'm:titleInfo[@type="abbreviated"]', xns);
+					if(titleInfo.length) {
+						newItem.journalAbbreviation = processTitleInfo(titleInfo[0]);
+					}
+					eastDebug("Set newItem.journalAbbreviation to: " + newItem.journalAbbreviation);
 				}
-			    }
-			    
-			    // creators (might be editors)
-			    processCreators(host, newItem, "editor");
-			    
-			    // identifiers
-			    processIdentifiers(host, newItem);
-			    
-			    part = part.concat(ZU.xpath(host, 'm:part', xns));
-			    // eastDebug("Setting part: " + part);
-			    originInfo = originInfo.concat(ZU.xpath(host, 'm:originInfo', xns));
+				
+				// creators (might be editors)
+				processCreators(host, newItem, "editor");
+				
+				// identifiers
+				processIdentifiers(host, newItem);
+				
+				part = part.concat(ZU.xpath(host, 'm:part', xns));
+				// eastDebug("Setting part: " + part);
+				originInfo = originInfo.concat(ZU.xpath(host, 'm:originInfo', xns));
 			}
 		}
 		
@@ -1202,7 +1208,7 @@ function doImport() {
 			
 			if(!newItem.seriesNumber) {
 				newItem.seriesNumber = getFirstResult(seriesNode,
-					['m:part/m:detail[@type="volume"]/m:number', 'm:titleInfo/m:partNumber']);
+								      ['m:part/m:detail[@type="volume"]/m:number', 'm:titleInfo/m:partNumber']);
 			}
 			
 			processCreators(seriesNode, newItem, "seriesEditor");
@@ -1219,14 +1225,14 @@ function doImport() {
 				var detail = details[i];
 				// eastDebug("Processing details for: " + detail);
 				newItem[detail] = getFirstResult(part, ['m:detail[@type="'+detail+'"]/m:number',
-					'm:detail[@type="'+detail+'"]']);
+									'm:detail[@type="'+detail+'"]']);
 			}
 
 			// pages and other extent information
 			var extents = ZU.xpath(part, "m:extent", xns);
 			for(var i=0; i<extents.length; i++) {
 				var extent = extents[i],
-					unit = extent.getAttribute("unit");
+				    unit = extent.getAttribute("unit");
 				
 				if(unit === "pages" || unit === "page") {
 					if(newItem.pages) continue;
@@ -1248,7 +1254,7 @@ function doImport() {
 
 			newItem.date = getFirstResult(part, ['m:date[not(@point="end")][@encoding]',
 							     'm:date[not(@point="end")]', 'm:date']);
-		    // // eastDebug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date in part: " + newItem.date);
+			// // eastDebug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date in part: " + newItem.date);
 		}
 
 		// physical description
@@ -1278,25 +1284,25 @@ function doImport() {
 				}
 			}
 			
-		    // date
-		    if (!newItem.date) {
-			newItem.date = getFirstResult(originInfo, ['m:copyrightDate[@encoding]',
-								   'm:copyrightDate',
-								   'm:dateIssued[not(@point="end")][@encoding]',
-								   'm:dateIssued[not(@point="end")]',
-								   'm:dateIssued',
-								   'm:dateCreated[@encoding]',
-								   'm:dateCreated']) || newItem.date;
-			// // eastDebug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date: " + newItem.date);
-		    }
+			// date
+			if (!newItem.date) {
+				newItem.date = getFirstResult(originInfo, ['m:copyrightDate[@encoding]',
+									   'm:copyrightDate',
+									   'm:dateIssued[not(@point="end")][@encoding]',
+									   'm:dateIssued[not(@point="end")]',
+									   'm:dateIssued',
+									   'm:dateCreated[@encoding]',
+									   'm:dateCreated']) || newItem.date;
+				// // eastDebug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date: " + newItem.date);
+			}
 
 			// lastModified
 			newItem.lastModified = getFirstResult(originInfo, ['m:dateModified[@encoding]',
-				'm:dateModified']);
+									   'm:dateModified']);
 			
 			// accessDate
 			newItem.accessDate = getFirstResult(originInfo, ['m:dateCaptured[@encoding]',
-				'm:dateCaptured[not(@encoding)]']);
+									 'm:dateCaptured[not(@encoding)]']);
 		}
 		
 		// call number
@@ -1309,8 +1315,8 @@ function doImport() {
 		var urlNodes = ZU.xpath(modsElement, 'm:location/m:url', xns);
 		for(var i=0; i<urlNodes.length; i++) {
 			var urlNode = urlNodes[0],
-				access = urlNode.getAttribute("access"),
-				usage = urlNode.getAttribute("usage");
+			access = urlNode.getAttribute("access"),
+			usage = urlNode.getAttribute("usage");
 			if(access === "raw object") {
 				var attachment = {
 					title:(urlNode.getAttribute("displayLabel") || "Attachment"),
@@ -1321,7 +1327,7 @@ function doImport() {
 			}
 			
 			if((!newItem.url || usage === "primary" || usage === "primary display")
-					&& access !== "preview") {
+			   && access !== "preview") {
 				newItem.url = urlNode.textContent;
 			}
 			
@@ -1338,11 +1344,11 @@ function doImport() {
 		for(var i=0; i<noteNodes.length; i++) {
 			var note = noteNodes[i];
 			newItem.notes.push({ note:
-				(note.hasAttribute("type") ? note.getAttribute("type") + ': ':'') +
-				note.textContent
-			});
-		    // to keep the notes in the actual item (as extra):
-		    newItem.extra = ZU.xpathText(modsElement, 'm:note', xns, "\n\n");
+					     (note.hasAttribute("type") ? note.getAttribute("type") + ': ':'') +
+					     note.textContent
+					   });
+			// to keep the notes in the actual item (as extra):
+			//  newItem.extra = ZU.xpathText(modsElement, 'm:note', xns, "\n\n");
 		}
 
 		// ToC - goes into notes
@@ -1372,19 +1378,19 @@ function doImport() {
 		var languageNodes = ZU.xpath(modsElement, 'm:language', xns);
 		for(var i=0; i<languageNodes.length; i++) {
 			var code = false,
-				languageNode = languageNodes[i],
-				languageTerms = ZU.xpath(languageNode, 'm:languageTerm', xns);
-				
+			    languageNode = languageNodes[i],
+			    languageTerms = ZU.xpath(languageNode, 'm:languageTerm', xns);
+			
 			for(var j=0; j<languageTerms.length; j++) {
 				var term = languageTerms[j],
-					termType = term.getAttribute("type");
+				termType = term.getAttribute("type");
 				
 				if (termType === "text") {
 					languages.push(term.textContent);
 					code = false;
 					break;
-				// code authorities should be used, not ignored
-				// but we ignore them for now
+					// code authorities should be used, not ignored
+					// but we ignore them for now
 				} else if (termType === "code" || term.hasAttribute("authority")) {
 					code = term.textContent;
 				}
@@ -1392,8 +1398,8 @@ function doImport() {
 			// If we have a code or text content of the node
 			// (prefer the former), then we add that
 			if (code || (languageNode.childNodes.length === 1
-					&& languageNode.firstChild.nodeType === 3 /* Node.TEXT_NODE*/
-					&& (code = languageNode.firstChild.nodeValue))) {
+				     && languageNode.firstChild.nodeType === 3 /* Node.TEXT_NODE*/
+				     && (code = languageNode.firstChild.nodeValue))) {
 				languages.push(code);
 			}
 		}
@@ -1512,7 +1518,7 @@ var testCases = [
 						"creatorType": "author"
 					}
 				],
-				"date": "2003",
+				"date": "Jan. 2003",
 				"ISSN": "1531-2542",
 				"abstractNote": "Academic libraries need to change their recruiting and hiring procedures to stay competitive in today's changing marketplace. By taking too long to find and to hire talented professionals in a tight labor market, academic libraries are losing out on top candidates and limiting their ability to become innovative and dynamic organizations. Traditional, deliberate, and risk-averse hiring models lead to positions remaining open for long periods, opportunities lost as top prospects find other positions, and a reduction in the overall talent level of the organization. To be more competitive and effective in their recruitment and hiring processes, academic libraries must foster manageable internal solutions, look to other professions for effective hiring techniques and models, and employ innovative concepts from modern personnel management literature.",
 				"language": "eng",
