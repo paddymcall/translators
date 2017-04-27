@@ -1,7 +1,7 @@
 {
-	"translatorID": "0e2235e7-babf-413c-9acf-f27cce5f059c",
-	"label": "MODS",
-	"creator": "Simon Kornblith and Richard Karnesky",
+	"translatorID": "e99d5b50-2a78-11e7-83f9-df137a87aeb9",
+	"label": "MODSeast",
+	"creator": "Simon Kornblith and Richard Karnesky, adapted by Patrick McAllister",
 	"target": "xml",
 	"minVersion": "2.1.9",
 	"maxVersion": "",
@@ -15,7 +15,7 @@
 	"inRepository": true,
 	"translatorType": 3,
 	"browserSupport": "gcsv",
-	"lastUpdated": "2015-02-11 01:24:19"
+	"lastUpdated": "2017-04-26"
 }
 
 var fromMarcGenre = {
@@ -333,12 +333,12 @@ function doExport() {
 		// Don't export notes or standalone attachments
 		if(item.itemType === "note" || item.itemType === "attachment") continue;
 		
-	    var mods = doc.createElementNS(ns, "mods");
-	    var isPartialItem = partialItemTypes.indexOf(item.itemType) !== -1;
-	    var recordInfo = doc.createElementNS(ns, "recordInfo");
-	    var host = doc.createElementNS(ns, "relatedItem");
-	    var series = doc.createElementNS(ns, "relatedItem");
-	    var topOrHost = (isPartialItem ? host : mods);
+		var mods = doc.createElementNS(ns, "mods"),
+			isPartialItem = partialItemTypes.indexOf(item.itemType) !== -1,
+			recordInfo = doc.createElementNS(ns, "recordInfo"),
+			host = doc.createElementNS(ns, "relatedItem"),
+			series = doc.createElementNS(ns, "relatedItem"),
+			topOrHost = (isPartialItem ? host : mods);
 		
 		/** CORE FIELDS **/
 		
@@ -713,9 +713,7 @@ function processGenre(contextElement) {
     for(var i=0; i<genre.length; i++) {
 	var genreStr = genre[i].textContent;
 	// Zotero.debug("MARC genre: " + genreStr);
-	if(fromMarcGenre[genreStr]) {
-	    return fromMarcGenre[genreStr]
-xxx				    };
+	if(fromMarcGenre[genreStr]) return fromMarcGenre[genreStr];
     }
 	
 	// Try to get DCT genre and convert to an item type
@@ -1406,7 +1404,7 @@ var testCases = [
 		"items": [
 			{
 				"itemType": "webpage",
-				"title": "FranUlmer.com -- Home Page",
+				"title": "FranUlmer.com -- Home Page / Fran Ulmer, Democratic candidate for Governor, Alaska, 2002",
 				"creators": [
 					{
 						"firstName": "Fran",
