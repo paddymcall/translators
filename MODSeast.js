@@ -5,14 +5,14 @@
 	"target": "xml",
 	"minVersion": "2.1.9",
 	"maxVersion": "",
-	"priority": 50,
+	"priority": 45,
 	"configOptions": {
 		"dataMode": "xml/dom"
 	},
 	"displayOptions": {
 		"exportNotes": true
 	},
-	"inRepository": true,
+	"inRepository": false,
 	"translatorType": 3,
 	"browserSupport": "gcsv",
 	"lastUpdated": "2017-04-26"
@@ -2088,6 +2088,68 @@ var testCases = [
 				"seeAlso": []
 			}
 		]
-	}
+	},
+	{
+		"type": "import",
+		"input": "<mods xmlns=\"http://www.loc.gov/mods/v3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ID=\"uuid-ca508f87-a55b-4f99-96ec-63ff28416a54\" version=\"3.4\" xsi:schemaLocation=\"http://www.loc.gov/mods/v3 http://cluster-schemas.uni-hd.de/modsCluster.xsd\">\n    <titleInfo lang=\"tib\" transliteration=\"tibetan/ewts\">\n        <title>bdag med pa grub pa</title>\n    </titleInfo>\n    <originInfo>\n        <dateCreated encoding=\"w3cdtf\" qualifier=\"approximate\">800</dateCreated>\n    </originInfo>\n    <typeOfResource>text</typeOfResource>\n    <genre>canonical scripture</genre>\n    <identifier type=\"lHan kar Catalogue No. (Lalou)\">712</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"isReferencedBy\" xlink:href=\"#uuid-88441de1-fe3b-4004-9795-1db90a2062e9\"/>\n    <identifier type=\"lHan kar Catalogue No. (Yoshimura)\">706</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"isReferencedBy\" xlink:href=\"#uuid-5f3825d4-4910-4ddb-902d-cb61627e3a05\"/>\n    <language>\n        <languageTerm authority=\"iso639-2b\" type=\"code\">tib</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">tibt</scriptTerm>\n    </language>\n    <recordInfo lang=\"eng\" script=\"Latn\">\n        <recordContentSource authority=\"marcorg\">de-16-158</recordContentSource>\n        <recordCreationDate encoding=\"w3cdtf\">2011-02-06+01:00</recordCreationDate>\n        <languageOfCataloging>\n            <languageTerm authority=\"iso639-2b\" type=\"code\">eng</languageTerm>\n            <scriptTerm authority=\"iso15924\" type=\"code\">latn</scriptTerm>\n        </languageOfCataloging>\n    </recordInfo>\n    <extension>\n        <ext:template xmlns:ext=\"http://exist-db.org/mods/extension\">suebs-tibetan</ext:template>\n    </extension>\n</mods>",
+		"items": [
+			{
+				"itemType": "manuscript",
+				"tags": [],
+				"itemKey": "5XTH2VAF",
+				"creators": [],
+				"itemVersion": 0,
+				"title": "bdag med pa grub pa",
+				"language": "tib",
+				"date": "800",
+				"notes": [],
+				"seeAlso": [],
+				"attachments": []
+			}
+		]
+	},
+	{
+		"type": "import",
+		"input": "<mods xmlns=\"http://www.loc.gov/mods/v3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ID=\"uuid-ca508f87-a55b-4f99-96ec-63ff28416a54\" version=\"3.4\" xsi:schemaLocation=\"http://www.loc.gov/mods/v3 http://cluster-schemas.uni-hd.de/modsCluster.xsd\">\n    <titleInfo lang=\"tib\" transliteration=\"tibetan/ewts\">\n        <title>bdag med pa grub pa</title>\n    </titleInfo>\n    <originInfo>\n        <dateCreated encoding=\"w3cdtf\" qualifier=\"approximate\">800</dateCreated>\n    </originInfo>\n    <typeOfResource>text</typeOfResource>\n    <genre>canonical scripture</genre>\n    <identifier type=\"lHan kar Catalogue No. (Lalou)\">712</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"isReferencedBy\" xlink:href=\"#uuid-88441de1-fe3b-4004-9795-1db90a2062e9\"><language><languageTerm>id</languageTerm></language><genre authority=\"marcgt\">periodical</genre>\n<typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n    </physicalDescription>\n    <originInfo>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <titleInfo type=\"abbreviated\">\n        <title>lHan kar kat.</title>\n    </titleInfo>\n    <part><detail/><detail type=\"canonNumber\"><number>712</number></detail></part></relatedItem>\n    <identifier type=\"lHan kar Catalogue No. (Yoshimura)\">706</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"isReferencedBy\" xlink:href=\"#uuid-5f3825d4-4910-4ddb-902d-cb61627e3a05\"><language><languageTerm>sv</languageTerm></language><genre authority=\"marcgt\">periodical</genre>\n<typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n    </physicalDescription>\n    <originInfo>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <titleInfo type=\"abbreviated\">\n        <title>Den kar ma</title>\n    </titleInfo>\n    <part><detail/><detail type=\"canonNumber\"><number>706</number></detail></part></relatedItem>\n    <language>\n        <languageTerm authority=\"rfc3066\" type=\"code\">bo</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">tibt</scriptTerm>\n    </language>\n    <recordInfo lang=\"eng\" script=\"Latn\">\n        <recordContentSource authority=\"marcorg\">de-16-158</recordContentSource>\n        <recordCreationDate encoding=\"w3cdtf\">2011-02-06+01:00</recordCreationDate>\n        <languageOfCataloging>\n            <languageTerm authority=\"iso639-2b\" type=\"code\">eng</languageTerm>\n            <scriptTerm authority=\"iso15924\" type=\"code\">latn</scriptTerm>\n        </languageOfCataloging>\n    </recordInfo>\n    <extension>\n        <ext:template xmlns:ext=\"http://exist-db.org/mods/extension\">suebs-tibetan</ext:template>\n    </extension>\n</mods>\n",
+		"items": [
+			{
+				"itemType": "manuscript",
+				"tags": [],
+				"creators": [],
+				"itemVersion": 0,
+				"title": "bdag med pa grub pa",
+				"language": "bo",
+				"date": "800",
+				"notes": [],
+				"seeAlso": [],
+				"attachments": []
+			}
+		]
+	},
+	{
+		"type": "import",
+		"input": "<mods xmlns=\"http://www.loc.gov/mods/v3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ID=\"uuid-7d895b22-08e3-4bd9-a690-667a14e91f55\" version=\"3.4\" xsi:schemaLocation=\"http://www.loc.gov/mods/v3 http://cluster-schemas.uni-hd.de/modsCluster.xsd\">\n    <titleInfo lang=\"tib\" transliteration=\"tibetan/ewts\">\n        <title>’brel pa brtag pa’i rgya cher bshad pa</title>\n    </titleInfo>\n    <name type=\"personal\">\n        <namePart lang=\"san\" transliteration=\"sanskrit/iast\">Jñānagarbha</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">trl</roleTerm>\n        </role>\n    </name>\n    <name type=\"personal\">\n        <namePart lang=\"tib\" transliteration=\"tibetan/ewts\">nam mkha'</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">trl</roleTerm>\n        </role>\n    </name>\n    <originInfo>\n        <dateCreated encoding=\"w3cdtf\" qualifier=\"approximate\">800</dateCreated>\n    </originInfo>\n    <typeOfResource>text</typeOfResource>\n    <genre>canonical scripture</genre>\n    <identifier type=\"sNar thang Tripitaka No.\">3727</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-ad760b76-3284-44d9-a8a5-0729e23934ba\">\n        <language><languageTerm>en</languageTerm></language><genre authority=\"marcgt\">periodical</genre>\n<typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n    </physicalDescription>\n    <originInfo>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <titleInfo type=\"abbreviated\">\n        <title>sNar thang</title>\n    </titleInfo>\n    <part>\n            <detail type=\"volume\">\n                <number>zhe</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>1</start>\n                <end>24b2</end>\n            </extent>\n        <detail type=\"canonNumber\"><number>3727</number></detail></part>\n    </relatedItem>\n    <identifier type=\"sDe dge Tripitaka No.\">4236</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-cc2623e4-8c30-4a3a-b8b0-1279e60b56df\">\n        <language>\n        <languageTerm authority=\"rfc3066\" type=\"code\">bo</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">Tibt</scriptTerm>\n    </language>\n<genre authority=\"marcgt\">periodical</genre>\n    <typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n        <extent>21 vols.</extent>\n    </physicalDescription>\n    <originInfo>\n        <place>\n            <placeTerm type=\"text\">Tōkyō</placeTerm>\n        </place>\n        <publisher>Sekai Seiten Kankō Kyōkai</publisher>\n        <dateIssued encoding=\"w3cdtf\" point=\"start\">1979</dateIssued>\n        <dateIssued encoding=\"w3cdtf\" point=\"end\">1983</dateIssued>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <name type=\"personal\">\n        <namePart type=\"given\">Yasunori</namePart>\n        <namePart type=\"family\">Ejima</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">edt</roleTerm>\n        </role>\n    </name>\n    <name type=\"personal\">\n        <namePart type=\"given\">Zuihō</namePart>\n        <namePart type=\"family\">Yamaguchi</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">edt</roleTerm>\n        </role>\n    </name>\n    <name type=\"personal\">\n        <namePart type=\"given\">Jikidō</namePart>\n        <namePart type=\"family\">Takasaki</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">edt</roleTerm>\n        </role>\n    </name>\n    <titleInfo type=\"abbreviated\">\n        <title>sDe dge</title>\n    </titleInfo>\n    <titleInfo lang=\"eng\" script=\"Latn\">\n        <title>Tibetan Tipiṭaka</title>\n        <subTitle>Sde dge ed. Bstan Ḥgyur, preserved at the Faculty of Letters, University of Tokyo</subTitle>\n        <partNumber>Tshad ma 1-21</partNumber>\n    </titleInfo>\n    <part>\n            <detail type=\"volume\">\n                <number>zhe</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>1b1</start>\n                <end>21b3</end>\n            </extent>\n        <detail type=\"canonNumber\"><number>4236</number></detail></part>\n    </relatedItem>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-a76d6022-6255-4b26-876a-84a48a54d12a\">\n        <language><languageTerm>it</languageTerm></language><genre authority=\"marcgt\">periodical</genre>\n<typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n    </physicalDescription>\n    <originInfo>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <titleInfo type=\"abbreviated\">\n        <title>Co ne</title>\n    </titleInfo>\n    <part>\n            <detail type=\"volume\">\n                <number>zhe</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>1</start>\n                <end>21b1</end>\n            </extent>\n        </part>\n    </relatedItem>\n    <identifier type=\"Peking Tripitaka No.\">5735</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-0f950cee-ab4e-419a-aef1-a63ad35f9dc1\">\n        <language>\n        <languageTerm authority=\"rfc3066\" type=\"code\">bo</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">Tibt</scriptTerm>\n    </language>\n<genre authority=\"marcgt\">periodical</genre>\n    <typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n        <extent>168 vols.</extent>\n    </physicalDescription>\n    <originInfo>\n        <place>\n            <placeTerm type=\"text\">Tōkyō</placeTerm>\n        </place>\n        <place>\n            <placeTerm type=\"text\">Kyōto</placeTerm>\n        </place>\n        <publisher>Tibetan Tripiṭaka Research Institute</publisher>\n        <dateIssued encoding=\"w3cdtf\" point=\"start\">1955</dateIssued>\n        <dateIssued encoding=\"w3cdtf\" point=\"end\">1961</dateIssued>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <name type=\"personal\">\n        <namePart type=\"given\">Daisetsu</namePart>\n        <namePart type=\"given\">Teitaro</namePart>\n        <namePart type=\"family\">Suzuki</namePart>\n        <role>\n            <roleTerm type=\"code\" authority=\"marcrelator\">edt</roleTerm>\n        </role>\n    </name>\n    <titleInfo type=\"abbreviated\">\n        <title>Peking</title>\n    </titleInfo>\n    <titleInfo lang=\"eng\">\n        <nonSort>The</nonSort>\n        <title>Tibetan Tripiṭaka</title>\n        <subTitle>Peking Edition. Reprinted under the Supervision of the Otani University, Kyoto</subTitle>\n    </titleInfo>\n    <part>\n            <detail type=\"volume\">\n                <number>ze</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>1</start>\n                <end>26b8</end>\n            </extent>\n        <detail type=\"canonNumber\"><number>5735</number></detail></part>\n    </relatedItem>\n    <language>\n        <languageTerm authority=\"rfc3066\" type=\"code\">bo</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">tibt</scriptTerm>\n    </language>\n    <recordInfo lang=\"eng\" script=\"Latn\">\n        <recordContentSource authority=\"marcorg\">de-16-158</recordContentSource>\n        <recordCreationDate encoding=\"w3cdtf\">2011-02-06+01:00</recordCreationDate>\n        <languageOfCataloging>\n            <languageTerm authority=\"iso639-2b\" type=\"code\">eng</languageTerm>\n            <scriptTerm authority=\"iso15924\" type=\"code\">latn</scriptTerm>\n        </languageOfCataloging>\n    </recordInfo>\n    <extension>\n        <ext:template xmlns:ext=\"http://exist-db.org/mods/extension\">suebs-tibetan</ext:template>\n    </extension>\n</mods>\n",
+		"items": [
+			{
+				"tags": [],
+				"title": "’brel pa brtag pa’i rgya cher bshad pa",
+				"itemVersion": 0,
+				"series": "sNar thang 3727 zhe 1–24b2; sDe dge 4236 zhe 1b1–21b3; Co ne zhe 1–21b1; Peking 5735 ze 1–26b8",
+				"date": "800",
+				"language": "bo",
+				"itemType": "manuscript",
+				"creators": [
+					{
+						"creatorType": "translator",
+						"name": "Jñānagarbha"
+					},
+					{
+						"creatorType": "translator",
+						"name": "nam mkha'"
+					}
+				]
+			}
+		]
+	}	
 ]
 /** END TEST CASES **/
