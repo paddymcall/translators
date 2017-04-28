@@ -67,6 +67,11 @@ function doImport() {
 
 function doExport() {
 	var item, data = [];
-	while(item = Z.nextItem()) data.push(ZU.itemToCSLJSON(item));
+	while(item = Z.nextItem()) {
+		var itemJSON = ZU.itemToCSLJSON(item);
+		// save tags to keywords, see https://forums.zotero.org/discussion/comment/268311/
+		itemJSON.keyword = item.tags.map(o => "EASTtag::" + o.tag).join(", ");
+		data.push(itemJSON);
+	}
 	Z.write(JSON.stringify(data, null, "\t"));
 }
