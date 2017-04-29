@@ -73,7 +73,7 @@ function doExport() {
 		itemJSON.keyword = item.tags.map(o => "EASTtag::" + o.tag).join(", ");
 		data.push(itemJSON);
 	}
-	if (itemJSON.type && itemJSON.keyword.match(/EASTtag::canonical scripture/g)) {
+	if (itemJSON.type && itemJSON.keyword.test(/|east|genre|canonical scripture|-|/g)) {
 		itemJSON.type = "manuscript";
 	}
 	Z.write(JSON.stringify(data, null, "\t"));
