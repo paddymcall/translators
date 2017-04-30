@@ -1362,7 +1362,7 @@ function doImport() {
 			newItem.tags.push(ZU.trimInternal(tagNodes[i].textContent));
 		}
 		if (genre) {
-			newItem.tags.push("|east|genre|" + genre + "|-|");
+			newItem.tags.push("~east~genre~" + genre + "~-~");
 		}
 
 		// scale
