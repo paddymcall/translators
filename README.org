@@ -1,0 +1,6 @@
+#+TITLE: Zotero Translators for EAST
+
+This is a fork of the standard [[https://github.com/zotero/translators][Zotero translators]] with some
+adaptations to work with Sanskrit and Tibetan sources on [[http://east.uni-hd.de/][EAST]].
+
+Mainly changes the [[file:MODS.js][MODS.js]] import/export routines.
