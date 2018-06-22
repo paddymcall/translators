@@ -9,7 +9,7 @@
 	"inRepository": true,
 	"translatorType": 4,
 	"browserSupport": "gcsibv",
-	"lastUpdated": "2016-03-22 11:58:30"
+	"lastUpdated": "2018-05-08 19:05:28"
 }
 
 /*
@@ -140,20 +140,6 @@ function getSearchResults(doc, checkOnly, extras) {
 	return found ? items : false;
 }
 
-var map = {
-	"newspaperArticle" : "newspaperArticle",
-	"jnlArticle" : "journalArticle", //also magazineArticles
-	"dissertationPublished" : "thesis",
-	"reportSerial" : "report",
-	"workingPaper" : "report",
-	"book" : "book",
-	"webPage" : "webpage",
-	"blog" : "blogPost",
-	"report" : "report",
-	"audioVideo" : "videoRecording",
-	"default" : "conferencePaper" //also default = manuscript?, referenceWork, encyclopedia
-}
-
 function detectWeb(doc, url) {
 	initLang(doc, url);
 	
@@ -167,14 +153,6 @@ function detectWeb(doc, url) {
 	var types = getTextValue(doc, ["Source type", "Document type", "Record type"]);
 	var zoteroType = getItemType(types);
 	if (zoteroType) return zoteroType;
-
-	//search for comments like
-	//<!-- Open:block:newspaperArticle -->
-	//these are also present on the pdf sites
-	var type = doc.getElementById('mainContentLeft');
-	type = type && type.innerHTML.match(/\bopen:block:\S+/i);
-	type = type && map[type[0].substring(11)];
-	if (type) return type;
 	
 	//hack for NYTs, which misses crucial data.
 	var db = getTextValue(doc, "Database")[0];
@@ -182,8 +160,15 @@ function detectWeb(doc, url) {
 		return "newspaperArticle";
 	}
 
-	// Fall back on journalArticle-- even if we couldn't guess the type
-	if(types.length) return "journalArticle";
+	//there is not much information about the item type in the pdf/fulltext page
+	var citationTextWrapper = ZU.xpathText(doc, '//div[@class="citationTextWrapper"]');
+	if (citationTextWrapper) {
+		if (citationTextWrapper.indexOf('ProQuest Dissertations Publishing')>-1) {
+			return "thesis";
+		}
+		// Fall back on journalArticle - even if we couldn't guess the type
+		return "journalArticle";
+	}
 }
 
 function doWeb(doc, url, noFollow) {
@@ -195,7 +180,7 @@ function doWeb(doc, url, noFollow) {
 		Zotero.selectItems(getSearchResults(doc, false, resultData), function (items) {
 			if (!items) return true;
 			
-			var articles = new Array();
+			var articles = [];
 			for(var item in items) {
 				articles.push(item);
 			}
@@ -227,7 +212,7 @@ function doWeb(doc, url, noFollow) {
 		var abstractTab = doc.getElementById('tab-AbstractRecord-null') // Seems like that null is a bug and it might change at some point
 			|| doc.getElementById('tab-Record-null'); // Shown as Details
 		if (!(abstractTab && !abstractTab.classList.contains('active'))) {
-			Zotero.debug("On Abstract page, scraping")
+			Zotero.debug("On Abstract page, scraping");
 			scrape(doc, url, type);
 		} else if (noFollow) {
 			Z.debug('Not following link again. Attempting to scrape');
@@ -238,7 +223,9 @@ function doWeb(doc, url, noFollow) {
 				throw new Error("Could not find the abstract/metadata link");
 			}
 			Zotero.debug("Going to the Abstract tab");
-			ZU.processDocuments(link.href, function(doc, url) { doWeb(doc, url, true) });
+			ZU.processDocuments(link.href, function(doc, url) {
+				doWeb(doc, url, true);
+			});
 		}
 	}
 }
@@ -410,6 +397,11 @@ function scrape(doc, url, type) {
 	//sometimes number of pages ends up in pages
 	if(!item.numPages) item.numPages = item.pages;
 	
+	//don't override the university with a publisher information for a thesis
+	if (item.itemType == "thesis" && item.university && item.publisher) {
+		delete item.publisher;
+	}
+	
 	//lanuguage is sometimes given as full word and abbreviation
 	if(item.language) item.language = item.language.split(/\s*;\s*/)[0];
 
@@ -434,10 +426,8 @@ function scrape(doc, url, type) {
 		item.date = date;
 	}
 
-	item.abstractNote = ZU.xpath(doc,
-		'//div[@id="abstractZone" or contains(@id,"abstractFull")]/p')
-		.map(function(p) { return ZU.trimInternal(p.textContent) }).join('\n');
-	
+	item.abstractNote = ZU.xpath(doc, '//div[contains(@id, "abstractSummary_")]/p')
+		.map(function(p) { return ZU.trimInternal(p.textContent); }).join('\n');
 
 	if(!item.tags.length && altKeywords.length) {
 		item.tags = altKeywords.join(',').split(/\s*(?:,|;)\s*/);
