@@ -18,7 +18,7 @@
 	"lastUpdated": "2017-12-25 13:29:42"
 }
 
-var eastShowDebug = true;
+var eastShowDebug = false;
 function eastDebug (message) {
 	if (eastShowDebug === true) {
 		Zotero.debug(message);
