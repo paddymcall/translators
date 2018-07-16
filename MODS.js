@@ -297,7 +297,9 @@ var partialItemTypes = ["blogPost", "bookSection", "conferencePaper", "dictionar
 
 // Namespace array for using ZU.xpath
 var ns = "http://www.loc.gov/mods/v3",
-	xns = {"m":ns};
+    xlink = "http://www.w3.org/1999/xlink",
+    xns = {"m":ns,
+	   "xlink":xlink};
 
 function detectImport() {
 	var doc = Zotero.getXML().documentElement;
@@ -692,7 +694,7 @@ function processTitle(contextElement) {
 	if(titleElements.length) {
 		completeTitle = processTitleInfo(titleElements);
 	};
-	// eastDebug("CompleteTitle is now: " + completeTitle);
+	eastDebug("CompleteTitle is now: " + completeTitle);
 	if(trlTitleElements.length) {
 		completeTitle = completeTitle
 			+ (completeTitle.length > 0 ? " [": "")
@@ -727,6 +729,7 @@ function processTitle(contextElement) {
 function processGenre(contextElement) {
 	// Try to get itemType by treating local genre as Zotero item type
 	var genre = ZU.xpath(contextElement, 'm:genre[@authority="local"]', xns);
+	eastDebug('Genre after m:genre[@authority="local"]' + genre);
 	for(var i=0; i<genre.length; i++) {
 		var genreStr = genre[i].textContent;
 		if(Zotero.Utilities.itemTypeExists(genreStr)) return genreStr;
@@ -747,11 +750,13 @@ function processGenre(contextElement) {
 	}
 	
 	// Try unlabeled genres
+	eastDebug('Going for unlabeled genres');
 	genre = ZU.xpath(contextElement, 'm:genre', xns);
+	eastDebug('Found these unlabeled genres: ' + genre);
 
 	for(var i=0; i<genre.length; i++) {
 		var genreStr = genre[i].textContent;
-
+		eastDebug('Genre has this string: ' + genreStr);
 		// Zotero
 		if(Zotero.Utilities.itemTypeExists(genreStr)) return genreStr;
 		// MARC
@@ -772,7 +777,7 @@ function processGenre(contextElement) {
 
 function processItemType(contextElement) {
     var type = processGenre(contextElement);
-    // eastDebug("Genre sofar: " + type);
+	eastDebug("Genre sofar: " + type);
 	if(type) return type;
 	
 	// Try to get type information from typeOfResource
@@ -874,15 +879,40 @@ function processCreator(name, itemType, defaultCreatorType) {
 	return creator;
 }
 
+function isTibetanCanonical(contextElement) {
+	var genre = processGenre(contextElement);
+	eastDebug("Seeing if contextElement is a Tibetan canonical work.");
+	eastDebug("xml namespaces are " + JSON.stringify(xns, null, 2));
+	var hosts = ZU.xpath(contextElement,
+			     'm:relatedItem[@type="host"]' +
+			     '[@xlink:href="#uuid-ad760b76-3284-44d9-a8a5-0729e23934ba" ' +
+			     'or @xlink:href="#uuid-cc2623e4-8c30-4a3a-b8b0-1279e60b56df" ' +
+			     'or @xlink:href="#uuid-a76d6022-6255-4b26-876a-84a48a54d12a" ' +
+			     'or @xlink:href="#uuid-0f950cee-ab4e-419a-aef1-a63ad35f9dc1" ' +
+			     ']',
+			     xns);
+	eastDebug("Found hosts: " + hosts.length);
+	if(genre == 'book' && hosts.length > 0)
+	{
+		eastDebug("It's a canonical scripture.");
+		return true;
+	} else {
+		eastDebug("It's not a canonical scripture.");
+		return false;
+	}
+}
+
 function processCreators(contextElement, newItem, defaultCreatorType) {
     // make this genre aware --- pma
     var genre = processGenre(contextElement);
-    // // eastDebug("Genre as seen from creators: " + genre);
-    if (genre === 'manuscript') {
-	var names = ZU.xpath(contextElement, 'm:name[not(ancestor::m:relatedItem)]', xns);
+    eastDebug("Genre as seen from processCreators: " + genre);
+	if (isTibetanCanonical(contextElement)) {
+		eastDebug("Tibetan canonical, hacking creators");
+		var names = ZU.xpath(contextElement, 'm:name[not(ancestor::m:relatedItem)]', xns);
     } else {
 	var names = ZU.xpath(contextElement, 'm:name', xns);
     }
+	eastDebug("Names found in processCreators are: " + ZU.xpathText(names, ".//text()", xns));
     for(var i=0; i<names.length; i++) {
 	var creator = processCreator(names[i], newItem.itemType, defaultCreatorType);
 	if(creator) newItem.creators.push(creator);
@@ -1049,23 +1079,7 @@ function doImport() {
 	    iModsElements<nModsElements; iModsElements++) {
 		var modsElement = modsElements[iModsElements],
 		newItem = new Zotero.Item();
-		var genreElement = ZU.xpath(modsElement, "./m:genre", xns);
-		var genre = 'journalArticle';
-		var hostGenre = '';
-		if (genreElement.length) {
-			// eastDebug("Found a genre: " + genreElement[0].textContent);
-			// fix for book sections
-			genre = genreElement[0].textContent;
-			if (genre == 'article') {
-				hostGenres = ZU.xpath(modsElement, "./m:relatedItem[@type='host']/m:genre", xns);
-				for (var iHostGenres=0; iHostGenres < hostGenres.length; iHostGenres++) {
-					hostGenre = hostGenres[iHostGenres].textContent.toLowerCase();
-					if (hostGenre == 'festschrift' || hostGenre == 'book' || hostGenre == 'editedvolume') {
-						genre = 'bookSection';
-					}
-				}
-			}
-		}
+		
 		// eastDebug("The genre is now: " + genre);
 
 		// title
@@ -1104,14 +1118,14 @@ function doImport() {
 	        // eastDebug("hosts found: " + hostNodes.length);
 		for(var i=0; i<hostNodes.length; i++) {
 			var host = hostNodes[i];
-		        if (genre === "canonical scripture") {
-				// eastDebug("Canonical scripture!");
+		        if (isTibetanCanonical(modsElement)) {
+				eastDebug("Canonical scripture!");
 				var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
-				// eastDebug("EAST Canon number (=part): " + eastCanonNumber);
+				eastDebug("EAST Canon number (=part): " + eastCanonNumber);
 				var eastCanonVolumeNodes = ZU.xpath(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
-				// eastDebug("EAST Canon volume nodes: found " + eastCanonVolumeNodes.length);
+				eastDebug("EAST Canon volume nodes: found " + eastCanonVolumeNodes.length);
 				var eastCanonVolume = ZU.xpathText(host, 'm:part/m:detail[not(@type="canonNumber")]/m:number', xns);
-				// eastDebug("EAST Canon volume: " + eastCanonVolume);
+				eastDebug("EAST Canon volume: " + eastCanonVolume);
 				// var eastCanonNumber = ZU.xpathText(host, 'm:part/m:detail[@type="canonNumber"]/m:number', xns);
 				var eastCanonExtentStart = ZU.xpathText(host, 'm:part/m:extent/m:start', xns);
 				// eastDebug("EAST Canon extent start: " + eastCanonExtentStart);
@@ -1127,9 +1141,6 @@ function doImport() {
 				var eastCanonSubTitle = ZU.xpathText(host, 'm:titleInfo/m:subTitle', xns);
 				// eastDebug("EAST Canon Subtitle: " + eastCanonSubTitle);
 				var eastCanonRef = "";
-				
-
-
 				
 				if (eastCanonAbbrevTitle && eastCanonAbbrevTitle.length) {
 					eastCanonRef = eastCanonAbbrevTitle;
@@ -1196,12 +1207,19 @@ function doImport() {
 				part = part.concat(ZU.xpath(host, 'm:part', xns));
 				// eastDebug("Setting part: " + part);
 				originInfo = originInfo.concat(ZU.xpath(host, 'm:originInfo', xns));
-			}
+
+				// Creators of host items should only
+				// be processed for items that are not
+				// Tibetan canonical entries (because
+				// we munge 4 publications into one
+				// entry here).
+				
+				// creators of host item will be evaluated by their role info
+				// and only if this is missing then they are connected by a generic
+				// contributor role
+				processCreators(host, newItem, "contributor");
+			}			
 			
-			// creators of host item will be evaluated by their role info
-			// and only if this is missing then they are connected by a generic
-			// contributor role
-			processCreators(host, newItem, "contributor");
 			
 			// identifiers
 			processIdentifiers(host, newItem);
@@ -1241,43 +1259,45 @@ function doImport() {
 		originInfo = originInfo.concat(ZU.xpath(modsElement, 'm:originInfo', xns));
 		
 		if(part.length) {
+			eastDebug("Investigating part");
 			// volume, issue, section
-			var details = ["volume", "issue", "section"];
-			for(var i=0; i<details.length; i++) {
-				var detail = details[i];
-				// eastDebug("Processing details for: " + detail);
-				newItem[detail] = getFirstResult(part, ['m:detail[@type="'+detail+'"]/m:number',
-									'm:detail[@type="'+detail+'"]']);
-			}
-
-			// pages and other extent information
-			var extents = ZU.xpath(part, "m:extent", xns);
-			for(var i=0; i<extents.length; i++) {
-				var extent = extents[i],
-				    unit = extent.getAttribute("unit");
-				
-				if(unit === "pages" || unit === "page") {
-					if(newItem.pages) continue;
-					var pagesStart = ZU.xpathText(extent, "m:start[1]", xns);
-					var pagesEnd = ZU.xpathText(extent, "m:end[1]", xns);
-					if(pagesStart || pagesEnd) {
-						if(pagesStart == pagesEnd) {
-							newItem.pages = pagesStart;
-						} else if(pagesStart && pagesEnd) {
-							newItem.pages = pagesStart+"-"+pagesEnd;
-						} else {
-							newItem.pages = pagesStart+pagesEnd;
-						}
-					}
-				} else {
-					processExtent(extent.textContent, newItem);
+			if(!isTibetanCanonical(modsElement)) {
+				var details = ["volume", "issue", "section"];
+				for(var i=0; i<details.length; i++) {
+					var detail = details[i];
+					eastDebug("Processing details for: " + detail);
+					newItem[detail] = getFirstResult(part, ['m:detail[@type="'+detail+'"]/m:number',
+										'm:detail[@type="'+detail+'"]']);
 				}
-			}
 
-			newItem.date = getFirstResult(part, ['m:date[not(@point="end")][@encoding]',
-							     'm:date[not(@point="end")]', 'm:date']);
-			// // eastDebug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date in part: " + newItem.date);
-		}
+				// pages and other extent information
+				var extents = ZU.xpath(part, "m:extent", xns);
+				for(var i=0; i<extents.length; i++) {
+					var extent = extents[i],
+					    unit = extent.getAttribute("unit");
+					
+					if(unit === "pages" || unit === "page") {
+						if(newItem.pages) continue;
+						var pagesStart = ZU.xpathText(extent, "m:start[1]", xns);
+						var pagesEnd = ZU.xpathText(extent, "m:end[1]", xns);
+						if(pagesStart || pagesEnd) {
+							if(pagesStart == pagesEnd) {
+								newItem.pages = pagesStart;
+							} else if(pagesStart && pagesEnd) {
+								newItem.pages = pagesStart+"-"+pagesEnd;
+							} else {
+								newItem.pages = pagesStart+pagesEnd;
+							}
+						}
+					} else {
+						processExtent(extent.textContent, newItem);
+					}
+				}
+
+				newItem.date = getFirstResult(part, ['m:date[not(@point="end")][@encoding]',
+								     'm:date[not(@point="end")]', 'm:date']);
+				// // eastDebug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date in part: " + newItem.date);
+			} else {}}
 
 		// physical description
 		var extents = ZU.xpath(modsElement, "m:physicalDescription/m:extent", xns);
@@ -1289,33 +1309,38 @@ function doImport() {
 		processIdentifiers(modsElement, newItem);
 		
 		if(originInfo.length) {
-			// edition
-			var editionNodes = ZU.xpath(originInfo, 'm:edition', xns);
-			if(editionNodes.length) newItem.edition = editionNodes[0].textContent;
-			
-			// place
-			var placeNodes = ZU.xpath(originInfo, 'm:place/m:placeTerm[@type="text"]', xns);
-			if(placeNodes.length) newItem.place = placeNodes[0].textContent;
-			
-			// publisher/distributor
-			var publisherNodes = ZU.xpath(originInfo, 'm:publisher', xns);
-			if(publisherNodes.length) {
-				newItem.publisher = publisherNodes[0].textContent;
-				if(newItem.itemType == "webpage" && !newItem.publicationTitle) {
-					newItem.publicationTitle = newItem.publisher;
+			eastDebug("Looking at originInfo");
+			if(!isTibetanCanonical(modsElement)) {
+				// edition
+				var editionNodes = ZU.xpath(originInfo, 'm:edition', xns);
+				if(editionNodes.length) newItem.edition = editionNodes[0].textContent;
+				
+				// place
+				var placeNodes = ZU.xpath(originInfo, 'm:place/m:placeTerm[@type="text"]', xns);
+				if(placeNodes.length) newItem.place = placeNodes[0].textContent;
+				
+				// publisher/distributor
+				var publisherNodes = ZU.xpath(originInfo, 'm:publisher', xns);
+				if(publisherNodes.length) {
+					newItem.publisher = publisherNodes[0].textContent;
+					if(newItem.itemType == "webpage" && !newItem.publicationTitle) {
+						newItem.publicationTitle = newItem.publisher;
+					}
 				}
 			}
-			
 			// date
+			eastDebug("Getting date, currently we have: " + newItem.date);
 			if (!newItem.date) {
-				newItem.date = getFirstResult(originInfo, ['m:copyrightDate[@encoding]',
-									   'm:copyrightDate',
-									   'm:dateIssued[not(@point="end")][@encoding]',
-									   'm:dateIssued[not(@point="end")]',
-									   'm:dateIssued',
-									   'm:dateCreated[@encoding]',
-									   'm:dateCreated']) || newItem.date;
-				// // eastDebug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date: " + newItem.date);
+				newItem.date = getFirstResult(originInfo,
+							      ['m:dateCreated[@encoding]',
+							       'm:dateCreated',
+							       'm:copyrightDate[@encoding]',
+							       'm:copyrightDate',
+							       'm:dateIssued[not(@point="end")][@encoding]',
+							       'm:dateIssued[not(@point="end")]',
+							       'm:dateIssued'
+							       ]) || newItem.date;
+				eastDebug("The date is now: " + newItem.date);
 			}
 
 			// lastModified
@@ -1384,8 +1409,8 @@ function doImport() {
 		for(var i=0; i<tagNodes.length; i++) {
 			newItem.tags.push(ZU.trimInternal(tagNodes[i].textContent));
 		}
-		if (genre) {
-			newItem.tags.push("~east~genre~" + genre + "~-~");
+		if (isTibetanCanonical(modsElement)) {
+			newItem.tags.push("~east~genre~" + "canonical scripture" + "~-~");
 		}
 
 		// scale
@@ -2140,7 +2165,6 @@ var testCases = [
 	},
 	{
 		"type": "import",
-<<<<<<< HEAD
 		"input": "<mods xmlns=\"http://www.loc.gov/mods/v3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ID=\"uuid-ca508f87-a55b-4f99-96ec-63ff28416a54\" version=\"3.4\" xsi:schemaLocation=\"http://www.loc.gov/mods/v3 http://cluster-schemas.uni-hd.de/modsCluster.xsd\">\n    <titleInfo lang=\"tib\" transliteration=\"tibetan/ewts\">\n        <title>bdag med pa grub pa</title>\n    </titleInfo>\n    <originInfo>\n        <dateCreated encoding=\"w3cdtf\" qualifier=\"approximate\">800</dateCreated>\n    </originInfo>\n    <typeOfResource>text</typeOfResource>\n    <genre>canonical scripture</genre>\n    <identifier type=\"lHan kar Catalogue No. (Lalou)\">712</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"isReferencedBy\" xlink:href=\"#uuid-88441de1-fe3b-4004-9795-1db90a2062e9\"/>\n    <identifier type=\"lHan kar Catalogue No. (Yoshimura)\">706</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"isReferencedBy\" xlink:href=\"#uuid-5f3825d4-4910-4ddb-902d-cb61627e3a05\"/>\n    <language>\n        <languageTerm authority=\"iso639-2b\" type=\"code\">tib</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">tibt</scriptTerm>\n    </language>\n    <recordInfo lang=\"eng\" script=\"Latn\">\n        <recordContentSource authority=\"marcorg\">de-16-158</recordContentSource>\n        <recordCreationDate encoding=\"w3cdtf\">2011-02-06+01:00</recordCreationDate>\n        <languageOfCataloging>\n            <languageTerm authority=\"iso639-2b\" type=\"code\">eng</languageTerm>\n            <scriptTerm authority=\"iso15924\" type=\"code\">latn</scriptTerm>\n        </languageOfCataloging>\n    </recordInfo>\n    <extension>\n        <ext:template xmlns:ext=\"http://exist-db.org/mods/extension\">suebs-tibetan</ext:template>\n    </extension>\n</mods>",
 		"items": [
 			{
@@ -2214,7 +2238,7 @@ var testCases = [
 	},
 	{
 		"type": "import",
-		"input": "<mods xmlns=\"http://www.loc.gov/mods/v3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ID=\"uuid-7d895b22-08e3-4bd9-a690-667a14e91f55\" version=\"3.4\" xsi:schemaLocation=\"http://www.loc.gov/mods/v3 http://cluster-schemas.uni-hd.de/modsCluster.xsd\">\n    <titleInfo lang=\"tib\" transliteration=\"tibetan/ewts\">\n        <title>’brel pa brtag pa’i rgya cher bshad pa</title>\n    </titleInfo>\n    <name type=\"personal\">\n        <namePart lang=\"san\" transliteration=\"sanskrit/iast\">Jñānagarbha</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">trl</roleTerm>\n        </role>\n    </name>\n    <name type=\"personal\">\n        <namePart lang=\"tib\" transliteration=\"tibetan/ewts\">nam mkha'</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">trl</roleTerm>\n        </role>\n    </name>\n    <originInfo>\n        <dateCreated encoding=\"w3cdtf\" qualifier=\"approximate\">800</dateCreated>\n    </originInfo>\n    <typeOfResource>text</typeOfResource>\n    <genre>canonical scripture</genre>\n    <identifier type=\"sNar thang Tripitaka No.\">3727</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-ad760b76-3284-44d9-a8a5-0729e23934ba\">\n        <part>\n            <detail type=\"part\">\n                <number>zhe</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>1</start>\n                <end>24b2</end>\n            </extent>\n        </part>\n    </relatedItem>\n    <identifier type=\"sDe dge Tripitaka No.\">4236</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-cc2623e4-8c30-4a3a-b8b0-1279e60b56df\">\n        <part>\n            <detail type=\"part\">\n                <number>zhe</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>1b1</start>\n                <end>21b3</end>\n            </extent>\n        </part>\n    </relatedItem>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-a76d6022-6255-4b26-876a-84a48a54d12a\">\n        <part>\n            <detail type=\"part\">\n                <number>zhe</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>1</start>\n                <end>21b1</end>\n            </extent>\n        </part>\n    </relatedItem>\n    <identifier type=\"Peking Tripitaka No.\">5735</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-0f950cee-ab4e-419a-aef1-a63ad35f9dc1\">\n        <part>\n            <detail type=\"part\">\n                <number>ze</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>1</start>\n                <end>26b8</end>\n            </extent>\n        </part>\n    </relatedItem>\n    <language>\n        <languageTerm authority=\"iso639-2b\" type=\"code\">tib</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">tibt</scriptTerm>\n    </language>\n    <recordInfo lang=\"eng\" script=\"Latn\">\n        <recordContentSource authority=\"marcorg\">de-16-158</recordContentSource>\n        <recordCreationDate encoding=\"w3cdtf\">2011-02-06+01:00</recordCreationDate>\n        <languageOfCataloging>\n            <languageTerm authority=\"iso639-2b\" type=\"code\">eng</languageTerm>\n            <scriptTerm authority=\"iso15924\" type=\"code\">latn</scriptTerm>\n        </languageOfCataloging>\n    </recordInfo>\n    <extension>\n        <ext:template xmlns:ext=\"http://exist-db.org/mods/extension\">suebs-tibetan</ext:template>\n    </extension>\n</mods>",
+		"input": "<modsCollection xmlns=\"http://www.loc.gov/mods/v3\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.loc.gov/mods/v3 http://cluster-schemas.uni-hd.de/modsCluster.xsd\">\n  <mods xmlns=\"http://www.loc.gov/mods/v3\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ID=\"uuid-f7ddfee3-13ec-4a03-bf61-2bf9d3b39fd2\" version=\"3.4\" xsi:schemaLocation=\"http://www.loc.gov/mods/v3 http://cluster-schemas.uni-hd.de/modsCluster.xsd\">\n    <titleInfo lang=\"tib\" transliteration=\"tibetan/ewts\">\n      <title>tog ge'i skad</title>\n    </titleInfo>\n    <typeOfResource>text</typeOfResource>\n    <name type=\"personal\">\n        <namePart lang=\"tib\" transliteration=\"tibetan/ewts\">dpang blo gros brtan pa</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">trl</roleTerm>\n        </role>\n    </name>\n    <originInfo>\n        <dateCreated encoding=\"w3cdtf\" qualifier=\"approximate\">1300</dateCreated>\n    </originInfo>\n    <genre>canonical scripture</genre>\n    <identifier type=\"sNar thang Tripitaka No.\">3754</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-ad760b76-3284-44d9-a8a5-0729e23934ba\">\n        <language><languageTerm>en</languageTerm></language><genre authority=\"marcgt\">periodical</genre>\n<typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n    </physicalDescription>\n    <originInfo>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <titleInfo type=\"abbreviated\">\n        <title>sNar thang</title>\n    </titleInfo>\n    <part>\n            <detail type=\"volume\">\n                <number>ze</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>373a</start>\n                <end>413b</end>\n            </extent>\n        <detail type=\"canonNumber\"><number>3754</number></detail></part>\n    </relatedItem>\n    <identifier type=\"sDe dge Tripitaka No.\">4264</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-cc2623e4-8c30-4a3a-b8b0-1279e60b56df\">\n        <language>\n        <languageTerm authority=\"rfc3066\" type=\"code\">bo</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">Tibt</scriptTerm>\n    </language>\n<genre authority=\"marcgt\">periodical</genre>\n    <typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n        <extent>21 vols.</extent>\n    </physicalDescription>\n    <originInfo>\n        <place>\n            <placeTerm type=\"text\">Tōkyō</placeTerm>\n        </place>\n        <publisher>Sekai Seiten Kankō Kyōkai</publisher>\n        <dateIssued encoding=\"w3cdtf\" point=\"start\">1979</dateIssued>\n        <dateIssued encoding=\"w3cdtf\" point=\"end\">1983</dateIssued>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <name type=\"personal\">\n        <namePart type=\"given\">Yasunori</namePart>\n        <namePart type=\"family\">Ejima</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">edt</roleTerm>\n        </role>\n    </name>\n    <name type=\"personal\">\n        <namePart type=\"given\">Zuihō</namePart>\n        <namePart type=\"family\">Yamaguchi</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">edt</roleTerm>\n        </role>\n    </name>\n    <name type=\"personal\">\n        <namePart type=\"given\">Jikidō</namePart>\n        <namePart type=\"family\">Takasaki</namePart>\n        <role>\n            <roleTerm authority=\"marcrelator\" type=\"code\">edt</roleTerm>\n        </role>\n    </name>\n    <titleInfo type=\"abbreviated\">\n        <title>sDe dge</title>\n    </titleInfo>\n    <titleInfo lang=\"eng\" script=\"Latn\">\n        <title>Tibetan Tipiṭaka</title>\n        <subTitle>Sde dge ed. Bstan Ḥgyur, preserved at the Faculty of Letters, University of Tokyo</subTitle>\n        <partNumber>Tshad ma 1-21</partNumber>\n    </titleInfo>\n    <part>\n            <detail type=\"volume\">\n                <number>zhe</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>336b2</start>\n                <end>369a1</end>\n            </extent>\n        <detail type=\"canonNumber\"><number>4264</number></detail></part>\n    </relatedItem>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-a76d6022-6255-4b26-876a-84a48a54d12a\">\n        <language><languageTerm>it</languageTerm></language><genre authority=\"marcgt\">periodical</genre>\n<typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n    </physicalDescription>\n    <originInfo>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <titleInfo type=\"abbreviated\">\n        <title>Co ne</title>\n    </titleInfo>\n    <part>\n            <detail type=\"volume\">\n                <number>zhe</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>331a2</start>\n                <end>364a2</end>\n            </extent>\n        </part>\n    </relatedItem>\n    <identifier type=\"Peking Tripitaka No.\">5762</identifier>\n    <relatedItem xmlns:xlink=\"http://www.w3.org/1999/xlink\" type=\"host\" xlink:href=\"#uuid-0f950cee-ab4e-419a-aef1-a63ad35f9dc1\">\n        <language>\n        <languageTerm authority=\"rfc3066\" type=\"code\">bo</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">Tibt</scriptTerm>\n    </language>\n<genre authority=\"marcgt\">periodical</genre>\n    <typeOfResource>text</typeOfResource>\n    <targetAudience authority=\"marctarget\">adult</targetAudience>\n    <physicalDescription>\n        <form authority=\"marcform\">print</form>\n        <extent>168 vols.</extent>\n    </physicalDescription>\n    <originInfo>\n        <place>\n            <placeTerm type=\"text\">Tōkyō</placeTerm>\n        </place>\n        <place>\n            <placeTerm type=\"text\">Kyōto</placeTerm>\n        </place>\n        <publisher>Tibetan Tripiṭaka Research Institute</publisher>\n        <dateIssued encoding=\"w3cdtf\" point=\"start\">1955</dateIssued>\n        <dateIssued encoding=\"w3cdtf\" point=\"end\">1961</dateIssued>\n        <issuance>continuing</issuance>\n    </originInfo>\n    <name type=\"personal\">\n        <namePart type=\"given\">Daisetsu</namePart>\n        <namePart type=\"given\">Teitaro</namePart>\n        <namePart type=\"family\">Suzuki</namePart>\n        <role>\n            <roleTerm type=\"code\" authority=\"marcrelator\">edt</roleTerm>\n        </role>\n    </name>\n    <titleInfo type=\"abbreviated\">\n        <title>Peking</title>\n    </titleInfo>\n    <titleInfo lang=\"eng\">\n        <nonSort>The</nonSort>\n        <title>Tibetan Tripiṭaka</title>\n        <subTitle>Peking Edition. Reprinted under the Supervision of the Otani University, Kyoto</subTitle>\n    </titleInfo>\n    <part>\n            <detail type=\"volume\">\n                <number>ze</number>\n            </detail>\n            <extent unit=\"pages\">\n                <start>361a8</start>\n                <end>399a3</end>\n            </extent>\n        <detail type=\"canonNumber\"><number>5762</number></detail></part>\n    </relatedItem>\n    <language>\n        <languageTerm authority=\"rfc3066\" type=\"code\">bo</languageTerm>\n        <scriptTerm authority=\"iso15924\" type=\"code\">tibt</scriptTerm>\n    </language>\n    <recordInfo lang=\"eng\" script=\"Latn\">\n        <recordContentSource authority=\"marcorg\">de-16-158</recordContentSource>\n        <recordCreationDate encoding=\"w3cdtf\">2011-02-06+01:00</recordCreationDate>\n        <languageOfCataloging>\n            <languageTerm authority=\"iso639-2b\" type=\"code\">eng</languageTerm>\n            <scriptTerm authority=\"iso15924\" type=\"code\">latn</scriptTerm>\n        </languageOfCataloging>\n    </recordInfo>\n    <extension>\n        <ext:template xmlns:ext=\"http://exist-db.org/mods/extension\">suebs-tibetan</ext:template>\n    </extension>\n</mods>\n</modsCollection>\n",
 		"items": [
 			{
 				"tags": [
