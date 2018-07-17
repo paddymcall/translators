@@ -1070,6 +1070,36 @@ function getFirstResult(contextNode, xpaths) {
 	}
 }
 
+function getDate(context, paths) {
+	eastDebug("Getting date");
+	var date, dateTo;
+	if(typeof paths === "undefined") {
+		paths = ['m:dateCreated[@encoding]',
+			 'm:dateCreated',
+			 'm:copyrightDate[@encoding]',
+			 'm:copyrightDate',
+			 'm:dateIssued[not(@point="end")][@encoding]',
+			 'm:dateIssued[not(@point="end")]',
+			 'm:dateIssued',
+			 'm:date[not(@point="end")]',
+			 'm:date'
+			];
+	}
+
+	date = getFirstResult(context, paths);
+
+	dateTo = getFirstResult(context,
+				['m:dateIssued[@point="end"][@encoding]',
+				 'm:dateIssued[@point="end"]',
+				 'm:date[@point="end"]']
+			       );
+	if(dateTo) {
+		date = date + "_" + dateTo;
+	}
+	eastDebug("Ended up with date: " + date);
+	return date;
+}
+
 function doImport() {
 	var xml = Zotero.getXML();
 	
@@ -1259,7 +1289,8 @@ function doImport() {
 		originInfo = originInfo.concat(ZU.xpath(modsElement, 'm:originInfo', xns));
 		
 		if(part.length) {
-			eastDebug("Investigating part");
+			eastDebug("Investigating part" // + ZU.xpathText(part, ".//text()", xns)
+				 );
 			// volume, issue, section
 			if(!isTibetanCanonical(modsElement)) {
 				var details = ["volume", "issue", "section"];
@@ -1294,8 +1325,7 @@ function doImport() {
 					}
 				}
 
-				newItem.date = getFirstResult(part, ['m:date[not(@point="end")][@encoding]',
-								     'm:date[not(@point="end")]', 'm:date']);
+				newItem.date = getDate(part);
 				// // eastDebug("XXXXXXXXXXXXXXXXXXXXXXX Inventing date in part: " + newItem.date);
 			} else {}}
 
@@ -1331,15 +1361,7 @@ function doImport() {
 			// date
 			eastDebug("Getting date, currently we have: " + newItem.date);
 			if (!newItem.date) {
-				newItem.date = getFirstResult(originInfo,
-							      ['m:dateCreated[@encoding]',
-							       'm:dateCreated',
-							       'm:copyrightDate[@encoding]',
-							       'm:copyrightDate',
-							       'm:dateIssued[not(@point="end")][@encoding]',
-							       'm:dateIssued[not(@point="end")]',
-							       'm:dateIssued'
-							       ]) || newItem.date;
+				newItem.date = getDate(originInfo) || newItem.date;
 				eastDebug("The date is now: " + newItem.date);
 			}
 

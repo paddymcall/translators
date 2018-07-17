@@ -15,6 +15,13 @@
 	"lastUpdated": "2017-07-05 19:32:38"
 }
 
+var eastShowDebug = false;
+function eastDebug (message) {
+	if (eastShowDebug === true) {
+		Zotero.debug("CSL debugging: " + message);
+	}
+};
+
 function parseInput() {
 	var str, json = "";
 	
@@ -110,6 +117,15 @@ function doExport() {
 	var item, data = [];
 	while(item = Z.nextItem()) {
 		var itemJSON = ZU.itemToCSLJSON(item);
+		eastDebug("Hacking CSLjson " + JSON.stringify(itemJSON));
+		if(itemJSON['issued']
+		   && itemJSON['issued']['literal']
+		   && typeof itemJSON['issued']['literal'] === "string"
+		   && itemJSON['issued']['literal'] != -1) {
+			Zotero.debug("CSL: date range found " + itemJSON['issued']['literal'].split("_"));
+			itemJSON['issued']['literal'] = itemJSON['issued']['literal'].split("_").join("/");
+			Zotero.debug("CSL: date set to " + itemJSON['issued']['literal']);
+		}
 		// save tags to keywords, see https://forums.zotero.org/discussion/comment/268311/
 		itemJSON.keyword = item.tags.map(o => "EASTtag::" + o.tag).join(", ");
 		if (itemJSON.type && /~east~genre~canonical scripture~-~/g.test(itemJSON.keyword)) {
