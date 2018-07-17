@@ -4,3 +4,23 @@ This is a fork of the standard [[https://github.com/zotero/translators][Zotero t
 adaptations to work with Sanskrit and Tibetan sources on [[http://east.uni-hd.de/][EAST]].
 
 Mainly changes the [[file:MODS.js][MODS.js]] import/export routines.
+
+* Usage
+
+It’s easiest to use these files with [[https://github.com/zotero/translation-server/][Zotero’s translation server]],
+along these lines (worked for revision [[https://github.com/zotero/translation-server/commit/63e8e7a2c4d84e72490b5bdbea959d7b4271c402][63e8e7a2c]]):
+
+#+BEGIN_SRC bash
+  git clone --recursive https://github.com/zotero/translation-server /tmp/trlsrv
+  cd /tmp/trlsrv
+  docker build -t translation-server-local .
+  cd -
+  docker run \
+	   -e SKIP_TRANSLATOR_UPDATE=1 \
+	   --mount type=bind,source="$(pwd)",target=/opt/translation-server/app/translators \
+	   --rm -p 1969:1969 \
+	   translation-server-local
+#+END_SRC
+
+This assumes that the command is called from the directory where these
+translators are found (so ~pwd~ works as the ~source~ value).
